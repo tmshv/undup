@@ -130,7 +130,7 @@ git commit -m "Refactor scan into channel-based Walk + ArchiveDetector"
 
 **Files:** none — manual verification.
 
-- [ ] Create a fixture directory simulating an unpacked archive next to its source:
+- [x] Create a fixture directory simulating an unpacked archive next to its source:
 
 ```bash
 rm -rf /tmp/fsdup-fixture
@@ -139,7 +139,7 @@ touch /tmp/fsdup-fixture/foo/bar.zip
 touch /tmp/fsdup-fixture/foo/bar/inside.txt
 ```
 
-- [ ] Run the new binary against the fixture:
+- [x] Run the new binary against the fixture:
 
 ```bash
 ./fsdup /tmp/fsdup-fixture
@@ -151,7 +151,7 @@ Expected output (exactly one line):
 Unpacked archive bar.zip (/tmp/fsdup-fixture/foo/bar)
 ```
 
-- [ ] Add a multi-part-extension fixture to confirm `.tar.gz` still works:
+- [x] Add a multi-part-extension fixture to confirm `.tar.gz` still works:
 
 ```bash
 mkdir -p /tmp/fsdup-fixture/foo/baz
@@ -166,7 +166,7 @@ Unpacked archive bar.zip (/tmp/fsdup-fixture/foo/bar)
 Unpacked archive baz.tar.gz (/tmp/fsdup-fixture/foo/baz)
 ```
 
-- [ ] Verify the error path: introduce an unreadable directory and confirm the binary prints an error and continues without aborting:
+- [x] Verify the error path: introduce an unreadable directory and confirm the binary prints an error and continues without aborting:
 
 ```bash
 mkdir /tmp/fsdup-fixture/locked
@@ -177,14 +177,14 @@ echo "exit: $?"
 
 Expected: an `error scanning /tmp/fsdup-fixture/locked: ...` line appears in the output, the two `Unpacked archive ...` lines still print, and `exit: 0`.
 
-- [ ] Restore permissions and remove the fixture:
+- [x] Restore permissions and remove the fixture:
 
 ```bash
 chmod 755 /tmp/fsdup-fixture/locked
 rm -rf /tmp/fsdup-fixture
 ```
 
-- [ ] No commit for this task — verification only.
+- [x] No commit for this task — verification only.
 
 ---
 
