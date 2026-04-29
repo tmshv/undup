@@ -19,7 +19,7 @@
 - Create: `internal/scan/archives.go`
 - Verify unchanged: `internal/scan/extensions.go`
 
-- [ ] Replace the contents of `internal/scan/scan.go` with:
+- [x] Replace the contents of `internal/scan/scan.go` with:
 
 ```go
 package scan
@@ -52,7 +52,7 @@ func Walk(root string) <-chan Entry {
 }
 ```
 
-- [ ] Create `internal/scan/archives.go` with:
+- [x] Create `internal/scan/archives.go` with:
 
 ```go
 package scan
@@ -92,9 +92,9 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) {
 }
 ```
 
-- [ ] Confirm `internal/scan/extensions.go` is unchanged (still exports `var Extensions []string = []string{".zip", ".7z", ".rar", ".tar", ".tar.gz"}`).
+- [x] Confirm `internal/scan/extensions.go` is unchanged (still exports `var Extensions []string = []string{".zip", ".7z", ".rar", ".tar", ".tar.gz"}`).
 
-- [ ] Replace the contents of `cmd/fsdup/main.go` with:
+- [x] Replace the contents of `cmd/fsdup/main.go` with:
 
 ```go
 package main
@@ -113,11 +113,11 @@ func main() {
 }
 ```
 
-- [ ] Run `go vet ./...`. Expected: no output, exit 0.
+- [x] Run `go vet ./...`. Expected: no output, exit 0.
 
-- [ ] Run `go build ./cmd/fsdup`. Expected: produces `./fsdup` binary, no errors.
+- [x] Run `go build ./cmd/fsdup`. Expected: produces `./fsdup` binary, no errors.
 
-- [ ] Commit:
+- [x] Commit:
 
 ```bash
 git add internal/scan/scan.go internal/scan/archives.go cmd/fsdup/main.go
