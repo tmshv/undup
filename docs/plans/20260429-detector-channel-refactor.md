@@ -193,7 +193,7 @@ rm -rf /tmp/fsdup-fixture
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] Update the Architecture section of `CLAUDE.md` so the file list and detection-algorithm description match the post-refactor layout. Specifically:
+- [x] Update the Architecture section of `CLAUDE.md` so the file list and detection-algorithm description match the post-refactor layout. Specifically:
 
   - Replace "Three files" with "Four files" and add `internal/scan/archives.go` to the list, described as: "the archive detector — consumes the entry channel produced by `scan.Walk` and prints unpacked-archive findings."
   - Update the description of `internal/scan/scan.go` to: "the filesystem walker — `Walk(root)` returns `<-chan Entry` populated by a background goroutine running `filepath.Walk`."
@@ -202,7 +202,7 @@ rm -rf /tmp/fsdup-fixture
   - In the same subsection, update the bullet about ordering so the warning applies to the producer: "`Walk` preserves `filepath.Walk`'s lexical ordering when emitting on the channel, which is what makes the directory-before-archive detection work. A switch to `filepath.WalkDir` or any concurrent traversal must preserve this ordering or move detection to a two-pass design."
   - Leave the bullets about the unbounded candidate map, multi-part extensions, and false positives as they are.
 
-- [ ] Commit:
+- [x] Commit:
 
 ```bash
 git add CLAUDE.md
