@@ -7,6 +7,7 @@ import "fmt"
 type ArchiveFinding struct {
 	ArchivePath string
 	DirPath     string
+	Size        int64
 }
 
 type ArchiveDetector struct {
@@ -38,7 +39,7 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 				continue
 			}
 			if dir, ok := candidates[e.Path]; ok {
-				out <- ArchiveFinding{ArchivePath: e.Path, DirPath: dir}
+				out <- ArchiveFinding{ArchivePath: e.Path, DirPath: dir, Size: e.Info.Size()}
 			}
 		}
 	}()

@@ -11,11 +11,11 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 	root := t.TempDir()
 
 	mustMkdir(t, filepath.Join(root, "foo"))
-	mustTouch(t, filepath.Join(root, "foo.zip"))
+	mustWrite(t, filepath.Join(root, "foo.zip"), []byte("zipdata"))
 	mustTouch(t, filepath.Join(root, "foo", "inside.txt"))
 
 	mustMkdir(t, filepath.Join(root, "bar"))
-	mustTouch(t, filepath.Join(root, "bar.tar.gz"))
+	mustWrite(t, filepath.Join(root, "bar.tar.gz"), []byte("targzdata!"))
 
 	mustTouch(t, filepath.Join(root, "unrelated.txt"))
 
@@ -27,8 +27,8 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 	sort.Slice(got, func(i, j int) bool { return got[i].ArchivePath < got[j].ArchivePath })
 
 	want := []ArchiveFinding{
-		{ArchivePath: filepath.Join(root, "bar.tar.gz"), DirPath: filepath.Join(root, "bar")},
-		{ArchivePath: filepath.Join(root, "foo.zip"), DirPath: filepath.Join(root, "foo")},
+		{ArchivePath: filepath.Join(root, "bar.tar.gz"), DirPath: filepath.Join(root, "bar"), Size: 10},
+		{ArchivePath: filepath.Join(root, "foo.zip"), DirPath: filepath.Join(root, "foo"), Size: 7},
 	}
 
 	if len(got) != len(want) {
@@ -66,4 +66,11 @@ func mustTouch(t *testing.T, path string) {
 		t.Fatal(err)
 	}
 	f.Close()
+}
+
+func mustWrite(t *testing.T, path string, data []byte) {
+	t.Helper()
+	if err := os.WriteFile(path, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
 }
