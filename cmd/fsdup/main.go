@@ -3,14 +3,16 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/tmshv/fsdup/internal/scan"
 )
 
 func main() {
 	rootDir := os.Args[1]
-	scanner := scan.New(scan.Extensions)
-	if err := scanner.Walk(rootDir); err != nil {
-		fmt.Printf("error scanning directory: %v\n", err)
+	entries := scan.Walk(rootDir)
+	detector := scan.NewArchiveDetector(scan.Extensions)
+	for f := range detector.Detect(entries) {
+		fmt.Printf("Unpacked archive %s (%s)\n", filepath.Base(f.ArchivePath), f.DirPath)
 	}
 }

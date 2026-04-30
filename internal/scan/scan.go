@@ -1,39 +1,28 @@
 package scan
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 )
 
-type Scanner struct {
-	extensions []string
+type Entry struct {
+	Path string
+	Info os.FileInfo
+	Err  error
 }
 
-func (s *Scanner) Walk(root string) error {
-	archives := map[string]string{}
-	err := filepath.Walk(root, func(path string, entry os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if entry.IsDir() {
-			for _, ext := range s.extensions {
-				arc := path + ext
-				archives[arc] = path
-			}
+// Walk traverses root and emits one Entry per filesystem entry in
+// filepath.Walk order. The returned channel is closed when traversal
+// finishes. Per-entry errors from filepath.Walk are surfaced via Entry.Err
+// rather than aborting the walk.
+func Walk(root string) <-chan Entry {
+	out := make(chan Entry)
+	go func() {
+		defer close(out)
+		filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+			out <- Entry{Path: path, Info: info, Err: err}
 			return nil
-		}
-
-		if dir, ok := archives[path]; ok {
-			name := entry.Name()
-			fmt.Printf("Unpacked archive %s (%s)\n", name, dir)
-		}
-
-		return nil
-	})
-	return err
-}
-
-func New(extensions []string) *Scanner {
-	return &Scanner{extensions}
+		})
+	}()
+	return out
 }
