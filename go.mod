@@ -1,3 +1,3 @@
-module github.com/tmshv/fsdup
+module github.com/tmshv/undup
 
 go 1.22.1

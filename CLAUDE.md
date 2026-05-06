@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build & run
 
 ```sh
-go build ./cmd/fsdup        # produces ./fsdup binary
-./fsdup <root_dir>          # walk root_dir, print directories that look like in-place unpacked archives
-go run ./cmd/fsdup <root>   # run without producing a binary
+go build ./cmd/undup        # produces ./undup binary
+./undup <root_dir>          # walk root_dir, print directories that look like in-place unpacked archives
+go run ./cmd/undup <root>   # run without producing a binary
 ```
 
 There are no tests yet. `go vet ./...` and `go build ./...` are the only static checks.
@@ -16,7 +16,7 @@ There are no tests yet. `go vet ./...` and `go build ./...` are the only static 
 
 Single-purpose CLI. Four files:
 
-- `cmd/fsdup/main.go` — argv parsing (positional `os.Args[1]`, no flags), wires `scan.Walk` to a `scan.ArchiveDetector` constructed from `scan.Extensions`.
+- `cmd/undup/main.go` — argv parsing (positional `os.Args[1]`, no flags), wires `scan.Walk` to a `scan.ArchiveDetector` constructed from `scan.Extensions`.
 - `internal/scan/scan.go` — the filesystem walker — `Walk(root)` returns `<-chan Entry` populated by a background goroutine running `filepath.Walk`.
 - `internal/scan/archives.go` — the archive detector — consumes the entry channel produced by `scan.Walk` and prints unpacked-archive findings.
 - `internal/scan/extensions.go` — hard-coded list of archive extensions (`.zip`, `.7z`, `.rar`, `.tar`, `.tar.gz`).

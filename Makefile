@@ -1,4 +1,4 @@
 .PHONY: build
 
 build:
-	go build -o bin/fsdup ./cmd/fsdup
+	go build -o bin/undup ./cmd/undup

@@ -5,7 +5,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/tmshv/fsdup/internal/scan"
+	"github.com/tmshv/undup/internal/scan"
 )
 
 func main() {
