@@ -22,5 +22,10 @@ go build ./cmd/undup
 2. Run
 
 ```sh
-./undup <root_dir>
+./undup <root>            # default: 1 walker goroutine
+./undup -j 4 <root>       # 4 parallel walker goroutines
+./undup --workers 4 <root>
+./undup --help            # full usage
 ```
+
+`<root>` must be an existing directory. `-j / --workers` must be `>= 1`.

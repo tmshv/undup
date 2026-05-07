@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"sort"
 	"testing"
+	"time"
 )
 
 func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
@@ -21,7 +22,7 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 
 	d := NewArchiveDetector(Extensions)
 	var got []ArchiveFinding
-	for f := range d.Detect(Walk(root)) {
+	for f := range d.Detect(Walk(root, 1)) {
 		got = append(got, f)
 	}
 	sort.Slice(got, func(i, j int) bool { return got[i].ArchivePath < got[j].ArchivePath })
@@ -42,13 +43,60 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 }
 
 func TestDetectClosesChannelWhenEntriesClose(t *testing.T) {
-	root := t.TempDir()
+	in := make(chan Entry)
+	close(in)
 	d := NewArchiveDetector(Extensions)
-	out := d.Detect(Walk(root))
-	for range out {
+	out := d.Detect(in)
+	select {
+	case _, ok := <-out:
+		if ok {
+			t.Fatal("Detect emitted a finding from an empty input")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Detect did not close output channel within 1s of input close")
 	}
-	if _, ok := <-out; ok {
-		t.Fatal("Detect channel should be closed after entries channel closes")
+}
+
+// Regression: a file whose basename is exactly an archive extension
+// (e.g. ".zip") used to trim to the parent directory path and emit a
+// false-positive finding pointing at the parent.
+func TestDetectIgnoresFilesWhoseBasenameIsJustAnExtension(t *testing.T) {
+	root := t.TempDir()
+
+	mustTouch(t, filepath.Join(root, ".zip"))
+	mustTouch(t, filepath.Join(root, ".tar.gz"))
+
+	d := NewArchiveDetector(Extensions)
+	var got []ArchiveFinding
+	for f := range d.Detect(Walk(root, 1)) {
+		got = append(got, f)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected no findings, got %d: %+v", len(got), got)
+	}
+}
+
+// Regression: filenames like "..zip" and "...zip" used to slip past the
+// basename check, trim to "." or "..", and resolve via os.Lstat to the
+// parent (or grandparent) directory — emitting a false-positive finding
+// that could even point outside the scanned root.
+func TestDetectIgnoresFilesWithDotPrefixedExtensionNames(t *testing.T) {
+	root := t.TempDir()
+	inner := filepath.Join(root, "inner")
+	mustMkdir(t, inner)
+
+	mustTouch(t, filepath.Join(inner, "..zip"))
+	mustTouch(t, filepath.Join(inner, "...zip"))
+	mustTouch(t, filepath.Join(inner, "..tar.gz"))
+	mustTouch(t, filepath.Join(inner, "...tar.gz"))
+
+	d := NewArchiveDetector(Extensions)
+	var got []ArchiveFinding
+	for f := range d.Detect(Walk(root, 1)) {
+		got = append(got, f)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected no findings, got %d: %+v", len(got), got)
 	}
 }
 
