@@ -148,7 +148,7 @@ git commit -m "Rewrite ArchiveDetector as stateless per-file Lstat lookup"
 - Modify: `internal/scan/scan.go`
 - Modify: `cmd/undup/main.go` (single-line callsite update)
 
-- [ ] **Step 1: Replace the contents of `internal/scan/scan.go` with:**
+- [x] **Step 1: Replace the contents of `internal/scan/scan.go` with:**
 
 ```go
 package scan
@@ -250,7 +250,7 @@ func Walk(root string, workers int) <-chan Entry {
 }
 ```
 
-- [ ] **Step 2: Update the callsite in `cmd/undup/main.go`.**
+- [x] **Step 2: Update the callsite in `cmd/undup/main.go`.**
 
 Change the single line:
 
@@ -266,7 +266,7 @@ to:
 
 (The `1` is a placeholder. Task 3 replaces it with `cli.Workers` once `kong` is wired.)
 
-- [ ] **Step 3: Static checks.**
+- [x] **Step 3: Static checks.**
 
 Run: `go vet ./...`
 Expected: no output, exit 0.
@@ -274,7 +274,7 @@ Expected: no output, exit 0.
 Run: `go build ./...`
 Expected: no output, exit 0.
 
-- [ ] **Step 4: Single-worker fixture check (parity with Task 1).**
+- [x] **Step 4: Single-worker fixture check (parity with Task 1).**
 
 ```bash
 rm -rf /tmp/undup-fixture
@@ -287,7 +287,7 @@ go run ./cmd/undup /tmp/undup-fixture
 
 Expected: same two `Unpacked archive` lines as Task 1.
 
-- [ ] **Step 5: Multi-worker fixture check (temporary edit).**
+- [x] **Step 5: Multi-worker fixture check (temporary edit).**
 
 Temporarily change the callsite in `cmd/undup/main.go` from `scan.Walk(rootDir, 1)` to `scan.Walk(rootDir, 4)`, then rebuild and run:
 
@@ -299,7 +299,7 @@ Expected: the same two `Unpacked archive` lines, possibly in a different order. 
 
 Now revert the callsite back to `scan.Walk(rootDir, 1)` (Task 3 will replace it with `cli.Workers`).
 
-- [ ] **Step 6: Error-path check.**
+- [x] **Step 6: Error-path check.**
 
 ```bash
 mkdir /tmp/undup-fixture/locked
@@ -310,14 +310,14 @@ echo "exit: $?"
 
 Expected: an `error scanning /tmp/undup-fixture/locked: ...` line appears, the two `Unpacked archive ...` lines still print, and `exit: 0`.
 
-- [ ] **Step 7: Clean up the fixture.**
+- [x] **Step 7: Clean up the fixture.**
 
 ```bash
 chmod 755 /tmp/undup-fixture/locked
 rm -rf /tmp/undup-fixture
 ```
 
-- [ ] **Step 8: Commit.**
+- [x] **Step 8: Commit.**
 
 ```bash
 git add internal/scan/scan.go cmd/undup/main.go

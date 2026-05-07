@@ -21,7 +21,7 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 
 	d := NewArchiveDetector(Extensions)
 	var got []ArchiveFinding
-	for f := range d.Detect(Walk(root)) {
+	for f := range d.Detect(Walk(root, 1)) {
 		got = append(got, f)
 	}
 	sort.Slice(got, func(i, j int) bool { return got[i].ArchivePath < got[j].ArchivePath })
@@ -44,7 +44,7 @@ func TestDetectEmitsFindingsForUnpackedArchives(t *testing.T) {
 func TestDetectClosesChannelWhenEntriesClose(t *testing.T) {
 	root := t.TempDir()
 	d := NewArchiveDetector(Extensions)
-	out := d.Detect(Walk(root))
+	out := d.Detect(Walk(root, 1))
 	for range out {
 	}
 	if _, ok := <-out; ok {

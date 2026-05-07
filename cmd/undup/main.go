@@ -10,7 +10,7 @@ import (
 
 func main() {
 	rootDir := os.Args[1]
-	entries := scan.Walk(rootDir)
+	entries := scan.Walk(rootDir, 1)
 	detector := scan.NewArchiveDetector(scan.Extensions)
 	for f := range detector.Detect(entries) {
 		fmt.Printf("Unpacked archive %s [%s] (%s)\n", filepath.Base(f.ArchivePath), humanSize(f.Size), f.DirPath)
