@@ -332,7 +332,7 @@ git commit -m "Parallelize scan.Walk across root subdirectories"
 - Modify: `cmd/undup/main.go` (full rewrite)
 - Modify: `go.mod`, `go.sum` (kong dependency)
 
-- [ ] **Step 1: Add the kong dependency.**
+- [x] **Step 1: Add the kong dependency.**
 
 ```bash
 go get github.com/alecthomas/kong@latest
@@ -341,7 +341,7 @@ go mod tidy
 
 Expected: `go.mod` gains a `require github.com/alecthomas/kong vX.Y.Z` line; `go.sum` is populated.
 
-- [ ] **Step 2: Replace the contents of `cmd/undup/main.go` with:**
+- [x] **Step 2: Replace the contents of `cmd/undup/main.go` with:**
 
 ```go
 package main
@@ -393,7 +393,7 @@ func humanSize(n int64) string {
 }
 ```
 
-- [ ] **Step 3: Static checks.**
+- [x] **Step 3: Static checks.**
 
 Run: `go vet ./...`
 Expected: no output, exit 0.
@@ -401,7 +401,7 @@ Expected: no output, exit 0.
 Run: `go build ./...`
 Expected: no output, exit 0.
 
-- [ ] **Step 4: CLI behavior checks against a fixture.**
+- [x] **Step 4: CLI behavior checks against a fixture.**
 
 ```bash
 rm -rf /tmp/undup-fixture
@@ -452,13 +452,13 @@ Expected: kong usage error from `existingdir` validation, non-zero exit.
 ```
 Expected: kong-formatted help text listing the `<root>` positional and the `-j, --workers` flag with default `1`.
 
-- [ ] **Step 5: Clean up the fixture.**
+- [x] **Step 5: Clean up the fixture.**
 
 ```bash
 rm -rf /tmp/undup-fixture
 ```
 
-- [ ] **Step 6: Commit.**
+- [x] **Step 6: Commit.**
 
 ```bash
 git add go.mod go.sum cmd/undup/main.go

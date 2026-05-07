@@ -5,12 +5,28 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/alecthomas/kong"
+
 	"github.com/tmshv/undup/internal/scan"
 )
 
+var cli struct {
+	Root    string `arg:"" type:"existingdir" help:"Root directory to scan."`
+	Workers int    `short:"j" default:"1" help:"Number of parallel walker goroutines (must be >= 1)."`
+}
+
 func main() {
-	rootDir := os.Args[1]
-	entries := scan.Walk(rootDir, 1)
+	kong.Parse(&cli,
+		kong.Name("undup"),
+		kong.Description("Scan a directory tree for in-place unpacked archives."),
+		kong.UsageOnError(),
+	)
+	if cli.Workers < 1 {
+		fmt.Fprintln(os.Stderr, "undup: -j/--workers must be >= 1")
+		os.Exit(1)
+	}
+
+	entries := scan.Walk(cli.Root, cli.Workers)
 	detector := scan.NewArchiveDetector(scan.Extensions)
 	for f := range detector.Detect(entries) {
 		fmt.Printf("Unpacked archive %s [%s] (%s)\n", filepath.Base(f.ArchivePath), humanSize(f.Size), f.DirPath)
