@@ -76,6 +76,30 @@ func TestDetectIgnoresFilesWhoseBasenameIsJustAnExtension(t *testing.T) {
 	}
 }
 
+// Regression: filenames like "..zip" and "...zip" used to slip past the
+// basename check, trim to "." or "..", and resolve via os.Lstat to the
+// parent (or grandparent) directory — emitting a false-positive finding
+// that could even point outside the scanned root.
+func TestDetectIgnoresFilesWithDotPrefixedExtensionNames(t *testing.T) {
+	root := t.TempDir()
+	inner := filepath.Join(root, "inner")
+	mustMkdir(t, inner)
+
+	mustTouch(t, filepath.Join(inner, "..zip"))
+	mustTouch(t, filepath.Join(inner, "...zip"))
+	mustTouch(t, filepath.Join(inner, "..tar.gz"))
+	mustTouch(t, filepath.Join(inner, "...tar.gz"))
+
+	d := NewArchiveDetector(Extensions)
+	var got []ArchiveFinding
+	for f := range d.Detect(Walk(root, 1)) {
+		got = append(got, f)
+	}
+	if len(got) != 0 {
+		t.Fatalf("expected no findings, got %d: %+v", len(got), got)
+	}
+}
+
 func mustMkdir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {

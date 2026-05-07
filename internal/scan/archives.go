@@ -53,10 +53,13 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 				if !strings.HasSuffix(e.Path, ext) {
 					continue
 				}
-				// Skip files whose basename is exactly the extension
-				// (e.g. ".zip", "dir/.zip"); trimming would yield the
-				// parent directory and produce a false positive.
-				if filepath.Base(e.Path) == ext {
+				// Skip files where stripping the extension would leave
+				// a basename of "", ".", or ".." — e.g. ".zip", "..zip",
+				// "...zip". Those candidates resolve via os.Lstat to the
+				// parent directory (or even outside the scanned root)
+				// and produce false positives.
+				trimmedBase := strings.TrimSuffix(filepath.Base(e.Path), ext)
+				if trimmedBase == "" || trimmedBase == "." || trimmedBase == ".." {
 					break
 				}
 				candidate := strings.TrimSuffix(e.Path, ext)

@@ -58,7 +58,11 @@ func Walk(root string, workers int) <-chan Entry {
 
 		children, err := os.ReadDir(root)
 		if err != nil {
+			// os.ReadDir may return a partial slice alongside the error;
+			// surface the error but still process whatever was read.
 			out <- Entry{Path: root, Err: err}
+		}
+		if len(children) == 0 {
 			return
 		}
 
