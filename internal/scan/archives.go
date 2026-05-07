@@ -3,6 +3,7 @@ package scan
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 )
@@ -34,7 +35,7 @@ func NewArchiveDetector(extensions []string) *ArchiveDetector {
 // that exists on disk. Detection is per-entry and stateless: the candidate
 // directory path is derived by stripping the matching extension from the
 // file path and verified with os.Lstat. Order-independent — safe to drive
-// from a concurrent walker. Per-entry walk errors are reported to stdout
+// from a concurrent walker. Per-entry walk errors are reported to stderr
 // and skipped.
 func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 	out := make(chan ArchiveFinding)
@@ -42,7 +43,7 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 		defer close(out)
 		for e := range entries {
 			if e.Err != nil {
-				fmt.Printf("error scanning %s: %v\n", e.Path, e.Err)
+				fmt.Fprintf(os.Stderr, "error scanning %s: %v\n", e.Path, e.Err)
 				continue
 			}
 			if e.Info.IsDir() {
@@ -51,6 +52,12 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 			for _, ext := range d.extensions {
 				if !strings.HasSuffix(e.Path, ext) {
 					continue
+				}
+				// Skip files whose basename is exactly the extension
+				// (e.g. ".zip", "dir/.zip"); trimming would yield the
+				// parent directory and produce a false positive.
+				if filepath.Base(e.Path) == ext {
+					break
 				}
 				candidate := strings.TrimSuffix(e.Path, ext)
 				info, err := os.Lstat(candidate)
