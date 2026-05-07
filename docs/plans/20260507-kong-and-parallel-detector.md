@@ -17,7 +17,7 @@
 **Files:**
 - Modify: `internal/scan/archives.go` (full rewrite of `Detect`; constructor adjusted to sort extensions longest-first)
 
-- [ ] **Step 1: Replace the contents of `internal/scan/archives.go` with:**
+- [x] **Step 1: Replace the contents of `internal/scan/archives.go` with:**
 
 ```go
 package scan
@@ -91,9 +91,9 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 }
 ```
 
-- [ ] **Step 2: Confirm `internal/scan/scan.go`, `internal/scan/extensions.go`, and `cmd/undup/main.go` are unchanged.** They still compile against the new `Detect` because its signature (`func (*ArchiveDetector) Detect(<-chan Entry) <-chan ArchiveFinding`) is unchanged.
+- [x] **Step 2: Confirm `internal/scan/scan.go`, `internal/scan/extensions.go`, and `cmd/undup/main.go` are unchanged.** They still compile against the new `Detect` because its signature (`func (*ArchiveDetector) Detect(<-chan Entry) <-chan ArchiveFinding`) is unchanged.
 
-- [ ] **Step 3: Static checks.**
+- [x] **Step 3: Static checks.**
 
 Run: `go vet ./...`
 Expected: no output, exit 0.
@@ -101,7 +101,7 @@ Expected: no output, exit 0.
 Run: `go build ./...`
 Expected: no output, exit 0.
 
-- [ ] **Step 4: Behavior parity smoke test.**
+- [x] **Step 4: Behavior parity smoke test.**
 
 ```bash
 rm -rf /tmp/undup-fixture
@@ -123,17 +123,17 @@ Unpacked archive baz.tar.gz [0 B] (/tmp/undup-fixture/foo/baz)
 
 The lone `orphan.zip` (no sibling dir) and the lone `orphan-dir/` (no sibling archive) must NOT appear. This validates that the new path-derivation + `Lstat` algorithm matches the old map-based one.
 
-- [ ] **Step 5: Multi-part-extension regression check.**
+- [x] **Step 5: Multi-part-extension regression check.**
 
 Make sure `.tar.gz` wins over `.tar`. The `baz.tar.gz` line above already covers this — if the longest-first sort were broken, the detector would strip `.tar` instead, look up `/tmp/undup-fixture/foo/baz.gz`, find nothing, and the `baz.tar.gz` line would be missing.
 
-- [ ] **Step 6: Clean up the fixture.**
+- [x] **Step 6: Clean up the fixture.**
 
 ```bash
 rm -rf /tmp/undup-fixture
 ```
 
-- [ ] **Step 7: Commit.**
+- [x] **Step 7: Commit.**
 
 ```bash
 git add internal/scan/archives.go
