@@ -472,7 +472,7 @@ git commit -m "Parse CLI args with kong and add -j workers flag"
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1: Update the Build & run section.**
+- [x] **Step 1: Update the Build & run section.**
 
 Replace the existing block:
 
@@ -492,7 +492,7 @@ go build ./cmd/undup            # produces ./undup binary
 go run ./cmd/undup <root>       # run without producing a binary
 ```
 
-- [ ] **Step 2: Update the Architecture section.**
+- [x] **Step 2: Update the Architecture section.**
 
 Replace the file list and detection-algorithm subsection so they describe the post-change layout:
 
@@ -520,7 +520,7 @@ Remove the bullet about the candidate map growing unbounded — the map no longe
 
 Remove the bullet warning that switching to `filepath.WalkDir` or any concurrent traversal must preserve ordering — concurrent traversal is now the documented `-j > 1` mode and the detector is order-independent.
 
-- [ ] **Step 3: Commit.**
+- [x] **Step 3: Commit.**
 
 ```bash
 git add CLAUDE.md
