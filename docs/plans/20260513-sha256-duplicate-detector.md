@@ -30,7 +30,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Create: `internal/scan/duplicates.go`
 - Create: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing test** for an empty entries channel closing the output channel.
+- [x] **Step 1 — Write the failing test** for an empty entries channel closing the output channel.
 
   Add `internal/scan/duplicates_test.go`:
 
@@ -58,12 +58,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it fails to compile.**
+- [x] **Step 2 — Run the test, confirm it fails to compile.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorClosesChannelWhenEntriesClose`
   Expected: build error — `undefined: NewDuplicateDetector`.
 
-- [ ] **Step 3 — Write the minimal implementation.**
+- [x] **Step 3 — Write the minimal implementation.**
 
   Create `internal/scan/duplicates.go`:
 
@@ -106,12 +106,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run the test, confirm it passes.**
+- [x] **Step 4 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorClosesChannelWhenEntriesClose -v`
   Expected: PASS.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go
