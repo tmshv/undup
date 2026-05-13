@@ -1158,7 +1158,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1 — Edit `CLAUDE.md` to describe the new file and CLI surface.**
+- [x] **Step 1 — Edit `CLAUDE.md` to describe the new file and CLI surface.**
 
   Apply these changes:
 
@@ -1184,12 +1184,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   3. Update the `cmd/undup/main.go` description to mention `--mode` and the three modes plus the tee for `all`.
 
-- [ ] **Step 2 — Confirm no other docs claim the old single-detector architecture.**
+- [x] **Step 2 — Confirm no other docs claim the old single-detector architecture.**
 
   Run: `rg -n "Four production files" .`
   Expected: no matches (the bullet you just rewrote was the only one).
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add CLAUDE.md
