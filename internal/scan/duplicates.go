@@ -90,12 +90,17 @@ func (d *DuplicateDetector) Detect(entries <-chan Entry) <-chan DuplicateGroup {
 		// Phase 2b — full SHA256 over surviving candidates.
 		groups := d.fullPass(prefixGroups)
 
+		pending := make([]DuplicateGroup, 0, len(groups))
 		for hash, g := range groups {
 			if len(g.paths) < 2 {
 				continue
 			}
 			sort.Strings(g.paths)
-			out <- DuplicateGroup{SHA256: hash, Size: g.size, Paths: g.paths}
+			pending = append(pending, DuplicateGroup{SHA256: hash, Size: g.size, Paths: g.paths})
+		}
+		sort.Slice(pending, func(i, j int) bool { return pending[i].Paths[0] < pending[j].Paths[0] })
+		for _, g := range pending {
+			out <- g
 		}
 	}()
 	return out

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"testing"
 	"time"
@@ -183,6 +184,9 @@ func TestDuplicateDetectorPrefixMatchTailDivergesGivesNoGroup(t *testing.T) {
 }
 
 func TestDuplicateDetectorTolerantOfUnreadableFile(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("chmod 0 only toggles read-only on Windows; cannot make file unreadable")
+	}
 	if os.Geteuid() == 0 {
 		t.Skip("running as root bypasses permission checks")
 	}
@@ -207,13 +211,13 @@ func TestDuplicateDetectorTolerantOfUnreadableFile(t *testing.T) {
 
 func TestDuplicateDetectorIdempotentAcrossWorkerCounts(t *testing.T) {
 	root := t.TempDir()
-	for i := 0; i < 6; i++ {
-		payload := []byte(fmt.Sprintf("payload-%d", i))
+	for i := range 6 {
+		payload := fmt.Appendf(nil, "payload-%d", i)
 		mustWrite(t, filepath.Join(root, fmt.Sprintf("a-%d.bin", i)), payload)
 		mustWrite(t, filepath.Join(root, fmt.Sprintf("b-%d.bin", i)), payload)
 	}
-	for i := 0; i < 4; i++ {
-		mustWrite(t, filepath.Join(root, fmt.Sprintf("unique-%d.bin", i)), []byte(fmt.Sprintf("unique-%d", i)))
+	for i := range 4 {
+		mustWrite(t, filepath.Join(root, fmt.Sprintf("unique-%d.bin", i)), fmt.Appendf(nil, "unique-%d", i))
 	}
 
 	d1 := NewDuplicateDetector(1, 4096, 1)
