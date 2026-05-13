@@ -879,7 +879,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `cmd/undup/main.go`
 
-- [ ] **Step 1 — Replace `cmd/undup/main.go` with the new wiring.**
+- [x] **Step 1 — Replace `cmd/undup/main.go` with the new wiring.**
 
   ```go
   package main
@@ -977,12 +977,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Build the binary.**
+- [x] **Step 2 — Build the binary.**
 
   Run: `go build ./cmd/undup`
   Expected: no errors; `./undup` produced in the current directory.
 
-- [ ] **Step 3 — Smoke-test `--mode archives` against a fixture (preserves current behavior).**
+- [x] **Step 3 — Smoke-test `--mode archives` against a fixture (preserves current behavior).**
 
   ```sh
   tmp=$(mktemp -d)
@@ -993,7 +993,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   ```
   Expected: one line like `Unpacked archive foo.zip [7 B] (<tmp>/foo)`.
 
-- [ ] **Step 4 — Smoke-test `--mode duplicates` against a fixture.**
+- [x] **Step 4 — Smoke-test `--mode duplicates` against a fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1010,12 +1010,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   b94d27b9  11  /var/folders/.../b.bin
   ```
 
-- [ ] **Step 5 — Confirm static checks pass.**
+- [x] **Step 5 — Confirm static checks pass.**
 
   Run: `go vet ./...`
   Expected: no output (no warnings).
 
-- [ ] **Step 6 — Commit.**
+- [x] **Step 6 — Commit.**
 
   ```sh
   git add cmd/undup/main.go
