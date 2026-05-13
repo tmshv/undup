@@ -126,7 +126,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Modify: `internal/scan/duplicates.go`
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Add a test helper and the first behavioral test.**
+- [x] **Step 1 — Add a test helper and the first behavioral test.**
 
   Append to `internal/scan/duplicates_test.go`:
 
@@ -236,12 +236,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the new test, confirm it fails.**
+- [x] **Step 2 — Run the new test, confirm it fails.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorBasic`
   Expected: failures — every subtest reports `got [] want ...` or `got ... want []` because `Detect` still does nothing.
 
-- [ ] **Step 3 — Implement Phase 1 (drain) and Phase 2 (full-hash worker pool).**
+- [x] **Step 3 — Implement Phase 1 (drain) and Phase 2 (full-hash worker pool).**
 
   Replace the `Detect` method in `internal/scan/duplicates.go`:
 
@@ -398,12 +398,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run all `scan` tests, confirm they pass.**
+- [x] **Step 4 — Run all `scan` tests, confirm they pass.**
 
   Run: `go test ./internal/scan -v`
   Expected: all subtests of `TestDuplicateDetectorBasic` PASS plus the existing archive tests still PASS.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go
