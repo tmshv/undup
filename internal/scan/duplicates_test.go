@@ -150,3 +150,26 @@ func TestDuplicateDetectorIgnoresSymlinks(t *testing.T) {
 		t.Fatalf("got %v, want %v", got, want)
 	}
 }
+
+func TestDuplicateDetectorTolerantOfUnreadableFile(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("running as root bypasses permission checks")
+	}
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "a.bin"), []byte("payload"))
+	mustWrite(t, filepath.Join(root, "b.bin"), []byte("payload"))
+	unreadable := filepath.Join(root, "c.bin")
+	mustWrite(t, unreadable, []byte("payload"))
+	if err := os.Chmod(unreadable, 0); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(unreadable, 0o644) })
+
+	d := NewDuplicateDetector(2, 4096, 1)
+	got := collectGroups(d.Detect(Walk(root, 1)))
+
+	want := [][]string{{filepath.Join(root, "a.bin"), filepath.Join(root, "b.bin")}}
+	if !equalGroupings(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}

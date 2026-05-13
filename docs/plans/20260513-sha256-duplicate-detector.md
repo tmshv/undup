@@ -475,7 +475,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing test.**
+- [x] **Step 1 — Write the failing test.**
 
   Append to `duplicates_test.go`:
 
@@ -505,14 +505,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it passes.**
+- [x] **Step 2 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorTolerantOfUnreadableFile -v`
   Expected: PASS. The existing `hashFull` error path drops failing paths with `ok: false` and a stderr message; the aggregator skips `!r.ok` entries. Two readable copies survive and form a group.
 
   If it fails because `Walk` itself errors on the chmod-0 file before hashing, double-check that the test runs on macOS/Linux (the platform under development) — `filepath.Walk` reports `os.Lstat` results, which work on a file the running user owns regardless of mode.
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
