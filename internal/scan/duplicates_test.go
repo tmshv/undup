@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"os"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -119,4 +120,33 @@ func equalGroupings(a, b [][]string) bool {
 		}
 	}
 	return true
+}
+
+func TestDuplicateDetectorIgnoresEmptyFiles(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "a.empty"), nil)
+	mustWrite(t, filepath.Join(root, "b.empty"), nil)
+
+	d := NewDuplicateDetector(2, 4096, 1)
+	got := collectGroups(d.Detect(Walk(root, 1)))
+	if len(got) != 0 {
+		t.Fatalf("expected no groups for empty files, got %v", got)
+	}
+}
+
+func TestDuplicateDetectorIgnoresSymlinks(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "a.bin"), []byte("payload"))
+	mustWrite(t, filepath.Join(root, "b.bin"), []byte("payload"))
+	if err := os.Symlink(filepath.Join(root, "a.bin"), filepath.Join(root, "link.bin")); err != nil {
+		t.Skipf("symlinks unsupported on this platform: %v", err)
+	}
+
+	d := NewDuplicateDetector(2, 4096, 1)
+	got := collectGroups(d.Detect(Walk(root, 1)))
+
+	want := [][]string{{filepath.Join(root, "a.bin"), filepath.Join(root, "b.bin")}}
+	if !equalGroupings(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
 }

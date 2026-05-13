@@ -417,7 +417,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing tests.**
+- [x] **Step 1 — Write the failing tests.**
 
   Append to `duplicates_test.go`:
 
@@ -454,14 +454,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   These imports may need to be added — `os` is already used in `archives_test.go` via `mustMkdir`, so it should be present via that file's `import "os"`. If not, add `os` to the test file's imports.
 
-- [ ] **Step 2 — Run the tests, confirm behavior.**
+- [x] **Step 2 — Run the tests, confirm behavior.**
 
   Run: `go test ./internal/scan -run "TestDuplicateDetectorIgnoresEmptyFiles|TestDuplicateDetectorIgnoresSymlinks" -v`
   Expected: both PASS — the existing Phase 1 filter (`IsRegular()` excludes symlinks; `size < minSize` excludes empties since default `minSize=1`) already covers these cases. This task is a regression lock.
 
   If either fails, debug the Phase 1 filter — do **not** modify the test fixtures. The detector's behavior must match the spec's edge-case policy.
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
