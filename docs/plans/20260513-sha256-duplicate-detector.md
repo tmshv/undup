@@ -1029,7 +1029,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `cmd/undup/main.go`
 
-- [ ] **Step 1 — Replace the `case "all":` branch and add `runAll` + `tee` helpers.**
+- [x] **Step 1 — Replace the `case "all":` branch and add `runAll` + `tee` helpers.**
 
   In `cmd/undup/main.go`, replace the placeholder `case "all":` body:
 
@@ -1110,12 +1110,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   Note: the `import "sync"` statement above is for guidance — fold it into the existing `import (...)` block at the top of `main.go`.
 
-- [ ] **Step 2 — Build.**
+- [x] **Step 2 — Build.**
 
   Run: `go build ./cmd/undup`
   Expected: no errors.
 
-- [ ] **Step 3 — Smoke-test `--mode all` against a mixed fixture.**
+- [x] **Step 3 — Smoke-test `--mode all` against a mixed fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1134,17 +1134,17 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   dupe: b94d27b9  11  <tmp>/b.bin
   ```
 
-- [ ] **Step 4 — Run the full test suite under `-race`.**
+- [x] **Step 4 — Run the full test suite under `-race`.**
 
   Run: `go test ./... -race`
   Expected: PASS.
 
-- [ ] **Step 5 — Run static checks.**
+- [x] **Step 5 — Run static checks.**
 
   Run: `go vet ./...`
   Expected: no warnings.
 
-- [ ] **Step 6 — Commit.**
+- [x] **Step 6 — Commit.**
 
   ```sh
   git add cmd/undup/main.go

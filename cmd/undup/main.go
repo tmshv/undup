@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"sync"
 
 	"github.com/alecthomas/kong"
 
@@ -35,8 +36,7 @@ func main() {
 	case "duplicates":
 		runDuplicates(cli.Root, cli.Workers)
 	case "all":
-		fmt.Fprintln(os.Stderr, "undup: --mode all is not yet implemented")
-		os.Exit(2)
+		runAll(cli.Root, cli.Workers)
 	}
 }
 
@@ -76,6 +76,70 @@ func printDuplicates(groups []scan.DuplicateGroup) {
 			fmt.Printf("%s  %*d  %s\n", short, width, g.Size, p)
 		}
 	}
+}
+
+func runAll(root string, workers int) {
+	entries := scan.Walk(root, workers)
+	archChan, dupChan := tee(entries)
+
+	archDetector := scan.NewArchiveDetector(scan.Extensions)
+	dupDetector := scan.NewDuplicateDetector(workers, 4096, 1)
+
+	var stdoutMu sync.Mutex
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		for f := range archDetector.Detect(archChan) {
+			stdoutMu.Lock()
+			fmt.Printf("archive: %s [%s] (%s)\n", filepath.Base(f.ArchivePath), humanSize(f.Size), f.DirPath)
+			stdoutMu.Unlock()
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		var groups []scan.DuplicateGroup
+		for g := range dupDetector.Detect(dupChan) {
+			groups = append(groups, g)
+		}
+		if len(groups) == 0 {
+			return
+		}
+		var maxSize int64
+		for _, g := range groups {
+			if g.Size > maxSize {
+				maxSize = g.Size
+			}
+		}
+		width := len(strconv.FormatInt(maxSize, 10))
+		stdoutMu.Lock()
+		defer stdoutMu.Unlock()
+		for _, g := range groups {
+			short := hex.EncodeToString(g.SHA256[:4])
+			for _, p := range g.Paths {
+				fmt.Printf("dupe: %s  %*d  %s\n", short, width, g.Size, p)
+			}
+		}
+	}()
+
+	wg.Wait()
+}
+
+func tee(in <-chan scan.Entry) (<-chan scan.Entry, <-chan scan.Entry) {
+	a := make(chan scan.Entry)
+	b := make(chan scan.Entry)
+	go func() {
+		defer close(a)
+		defer close(b)
+		for e := range in {
+			a <- e
+			b <- e
+		}
+	}()
+	return a, b
 }
 
 func humanSize(n int64) string {
