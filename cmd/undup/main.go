@@ -135,6 +135,12 @@ func tee(in <-chan scan.Entry) (<-chan scan.Entry, <-chan scan.Entry) {
 		defer close(a)
 		defer close(b)
 		for e := range in {
+			// Log walk errors once here so the two downstream detectors
+			// don't each print the same "error scanning ..." line.
+			if e.Err != nil {
+				fmt.Fprintf(os.Stderr, "error scanning %s: %v\n", e.Path, e.Err)
+				continue
+			}
 			a <- e
 			b <- e
 		}

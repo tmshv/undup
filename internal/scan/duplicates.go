@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"sync"
 )
 
@@ -93,6 +94,7 @@ func (d *DuplicateDetector) Detect(entries <-chan Entry) <-chan DuplicateGroup {
 			if len(g.paths) < 2 {
 				continue
 			}
+			sort.Strings(g.paths)
 			out <- DuplicateGroup{SHA256: hash, Size: g.size, Paths: g.paths}
 		}
 	}()
