@@ -527,7 +527,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Modify: `internal/scan/duplicates.go`
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write a test that exercises the prefix-pass shortcut.**
+- [x] **Step 1 — Write a test that exercises the prefix-pass shortcut.**
 
   Append to `duplicates_test.go`:
 
@@ -568,12 +568,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the tests; they pass against the current (non-optimized) code but lock behavior for the upcoming refactor.**
+- [x] **Step 2 — Run the tests; they pass against the current (non-optimized) code but lock behavior for the upcoming refactor.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorPrefix -v`
   Expected: both PASS. The full-hash pass alone correctly excludes both cases.
 
-- [ ] **Step 3 — Refactor `Detect` to add the prefix pre-pass.**
+- [x] **Step 3 — Refactor `Detect` to add the prefix pre-pass.**
 
   Replace the body of `Detect` and add the prefix helpers in `internal/scan/duplicates.go`. The full file becomes:
 
@@ -803,12 +803,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run all scan tests.**
+- [x] **Step 4 — Run all scan tests.**
 
   Run: `go test ./internal/scan -v`
   Expected: every test in this file plus `archives_test.go` PASSES.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go

@@ -1,6 +1,7 @@
 package scan
 
 import (
+	"bytes"
 	"os"
 	"path/filepath"
 	"sort"
@@ -148,6 +149,35 @@ func TestDuplicateDetectorIgnoresSymlinks(t *testing.T) {
 	want := [][]string{{filepath.Join(root, "a.bin"), filepath.Join(root, "b.bin")}}
 	if !equalGroupings(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestDuplicateDetectorPrefixDifferentialAvoidsFullHash(t *testing.T) {
+	root := t.TempDir()
+	a := bytes.Repeat([]byte{'A'}, 8192)
+	b := bytes.Repeat([]byte{'B'}, 8192)
+	mustWrite(t, filepath.Join(root, "a.bin"), a)
+	mustWrite(t, filepath.Join(root, "b.bin"), b)
+
+	d := NewDuplicateDetector(2, 4096, 1)
+	got := collectGroups(d.Detect(Walk(root, 1)))
+	if len(got) != 0 {
+		t.Fatalf("expected no groups, got %v", got)
+	}
+}
+
+func TestDuplicateDetectorPrefixMatchTailDivergesGivesNoGroup(t *testing.T) {
+	root := t.TempDir()
+	prefix := bytes.Repeat([]byte{'P'}, 4096)
+	a := append(append([]byte(nil), prefix...), bytes.Repeat([]byte{'A'}, 1024)...)
+	b := append(append([]byte(nil), prefix...), bytes.Repeat([]byte{'B'}, 1024)...)
+	mustWrite(t, filepath.Join(root, "a.bin"), a)
+	mustWrite(t, filepath.Join(root, "b.bin"), b)
+
+	d := NewDuplicateDetector(2, 4096, 1)
+	got := collectGroups(d.Detect(Walk(root, 1)))
+	if len(got) != 0 {
+		t.Fatalf("expected no groups, got %v", got)
 	}
 }
 
