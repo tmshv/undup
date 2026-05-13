@@ -2,6 +2,7 @@ package scan
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -201,5 +202,29 @@ func TestDuplicateDetectorTolerantOfUnreadableFile(t *testing.T) {
 	want := [][]string{{filepath.Join(root, "a.bin"), filepath.Join(root, "b.bin")}}
 	if !equalGroupings(got, want) {
 		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestDuplicateDetectorIdempotentAcrossWorkerCounts(t *testing.T) {
+	root := t.TempDir()
+	for i := 0; i < 6; i++ {
+		payload := []byte(fmt.Sprintf("payload-%d", i))
+		mustWrite(t, filepath.Join(root, fmt.Sprintf("a-%d.bin", i)), payload)
+		mustWrite(t, filepath.Join(root, fmt.Sprintf("b-%d.bin", i)), payload)
+	}
+	for i := 0; i < 4; i++ {
+		mustWrite(t, filepath.Join(root, fmt.Sprintf("unique-%d.bin", i)), []byte(fmt.Sprintf("unique-%d", i)))
+	}
+
+	d1 := NewDuplicateDetector(1, 4096, 1)
+	d8 := NewDuplicateDetector(8, 4096, 1)
+	got1 := collectGroups(d1.Detect(Walk(root, 1)))
+	got8 := collectGroups(d8.Detect(Walk(root, 8)))
+
+	if !equalGroupings(got1, got8) {
+		t.Fatalf("worker count changed groupings:\n  workers=1: %v\n  workers=8: %v", got1, got8)
+	}
+	if len(got1) != 6 {
+		t.Fatalf("expected 6 groups, got %d: %v", len(got1), got1)
 	}
 }

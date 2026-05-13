@@ -822,7 +822,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the regression test.**
+- [x] **Step 1 — Write the regression test.**
 
   Append to `duplicates_test.go`:
 
@@ -855,17 +855,17 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it passes.**
+- [x] **Step 2 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorIdempotentAcrossWorkerCounts -race -v`
   Expected: PASS, no race warnings.
 
-- [ ] **Step 3 — Run the entire test suite under `-race` to catch latent goroutine bugs.**
+- [x] **Step 3 — Run the entire test suite under `-race` to catch latent goroutine bugs.**
 
   Run: `go test ./... -race`
   Expected: PASS for every package.
 
-- [ ] **Step 4 — Commit.**
+- [x] **Step 4 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
