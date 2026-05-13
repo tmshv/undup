@@ -1204,12 +1204,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Move: `docs/specs/20260513-sha256-duplicate-detector.md` — keep in place; only plans move per user CLAUDE.md.
 - Move: `docs/plans/20260513-sha256-duplicate-detector.md` → `docs/plans/completed/20260513-sha256-duplicate-detector.md`
 
-- [ ] **Step 1 — Final full-suite verification.**
+- [x] **Step 1 — Final full-suite verification.**
 
   Run: `go build ./... && go vet ./... && go test ./... -race`
   Expected: every step exits 0, no warnings, all tests PASS.
 
-- [ ] **Step 2 — End-to-end smoke against a richer fixture.**
+- [x] **Step 2 — End-to-end smoke against a richer fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1225,14 +1225,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   ```
   Expected: two `archive:` lines (foo.zip, bar.tar.gz) and four `dupe:` lines forming two groups of 2.
 
-- [ ] **Step 3 — Move the completed plan.**
+- [x] **Step 3 — Move the completed plan.**
 
   ```sh
   mkdir -p docs/plans/completed
   git mv docs/plans/20260513-sha256-duplicate-detector.md docs/plans/completed/20260513-sha256-duplicate-detector.md
   ```
 
-- [ ] **Step 4 — Commit.**
+- [x] **Step 4 — Commit.**
 
   ```sh
   git commit -m "docs: archive completed SHA256 duplicate-detector plan"
