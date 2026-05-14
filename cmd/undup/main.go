@@ -16,7 +16,7 @@ import (
 var cli struct {
 	Root    string `arg:"" type:"existingdir" help:"Root directory to scan."`
 	Workers int    `short:"j" default:"1" help:"Number of parallel walker / hash workers (must be >= 1)."`
-	Mode    string `short:"m" default:"archives" enum:"archives,duplicates,all" help:"Detector to run: archives, duplicates, or all."`
+	Mode    string `short:"m" default:"archives" enum:"archives,hashsum,all" help:"Detector to run: archives, hashsum, or all."`
 }
 
 func main() {
@@ -33,7 +33,7 @@ func main() {
 	switch cli.Mode {
 	case "archives":
 		runArchives(cli.Root, cli.Workers)
-	case "duplicates":
+	case "hashsum":
 		runDuplicates(cli.Root, cli.Workers)
 	case "all":
 		runAll(cli.Root, cli.Workers)

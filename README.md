@@ -3,7 +3,7 @@
 Walks a directory tree to help you keep a filesystem clean. Two detectors are available:
 
 - **archives** (default) — reports unpacked archives that still sit next to their original `.zip`, `.7z`, `.rar`, `.tar`, or `.tar.gz` file.
-- **duplicates** — reports files whose contents are byte-for-byte identical, grouped by SHA256.
+- **hashsum** — reports files whose contents are byte-for-byte identical, grouped by SHA256.
 - **all** — runs both detectors in a single walk of the tree.
 
 ```
@@ -28,17 +28,17 @@ go build ./cmd/undup
 ```sh
 ./undup <root>                            # --mode archives (default), 1 walker
 ./undup -j 4 <root>                       # 4 parallel walkers, archives mode
-./undup --mode duplicates -j 10 <root>    # duplicate-file detector
+./undup --mode hashsum -j 10 <root>       # duplicate-file detector (SHA256)
 ./undup --mode all -j 10 <root>           # both detectors, single walk
 ./undup --help                            # full usage
 ```
 
 `<root>` must be an existing directory. `-j / --workers` must be `>= 1`; the value sizes both the directory walker fan-out and the per-pass hash worker pool used by the duplicate detector.
 
-### Duplicate-mode output
+### Hashsum-mode output
 
 ```
-./undup --mode duplicates -j 10 ~/Downloads
+./undup --mode hashsum -j 10 ~/Downloads
 b94d27b9  524288  /home/me/Downloads/photo-001.raw
 b94d27b9  524288  /home/me/Downloads/backup/photo-001.raw
 a591a6d4   12011  /home/me/Downloads/notes.txt
