@@ -30,7 +30,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Create: `internal/scan/duplicates.go`
 - Create: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing test** for an empty entries channel closing the output channel.
+- [x] **Step 1 — Write the failing test** for an empty entries channel closing the output channel.
 
   Add `internal/scan/duplicates_test.go`:
 
@@ -58,12 +58,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it fails to compile.**
+- [x] **Step 2 — Run the test, confirm it fails to compile.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorClosesChannelWhenEntriesClose`
   Expected: build error — `undefined: NewDuplicateDetector`.
 
-- [ ] **Step 3 — Write the minimal implementation.**
+- [x] **Step 3 — Write the minimal implementation.**
 
   Create `internal/scan/duplicates.go`:
 
@@ -106,12 +106,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run the test, confirm it passes.**
+- [x] **Step 4 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorClosesChannelWhenEntriesClose -v`
   Expected: PASS.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go
@@ -126,7 +126,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Modify: `internal/scan/duplicates.go`
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Add a test helper and the first behavioral test.**
+- [x] **Step 1 — Add a test helper and the first behavioral test.**
 
   Append to `internal/scan/duplicates_test.go`:
 
@@ -236,12 +236,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the new test, confirm it fails.**
+- [x] **Step 2 — Run the new test, confirm it fails.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorBasic`
   Expected: failures — every subtest reports `got [] want ...` or `got ... want []` because `Detect` still does nothing.
 
-- [ ] **Step 3 — Implement Phase 1 (drain) and Phase 2 (full-hash worker pool).**
+- [x] **Step 3 — Implement Phase 1 (drain) and Phase 2 (full-hash worker pool).**
 
   Replace the `Detect` method in `internal/scan/duplicates.go`:
 
@@ -398,12 +398,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run all `scan` tests, confirm they pass.**
+- [x] **Step 4 — Run all `scan` tests, confirm they pass.**
 
   Run: `go test ./internal/scan -v`
   Expected: all subtests of `TestDuplicateDetectorBasic` PASS plus the existing archive tests still PASS.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go
@@ -417,7 +417,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing tests.**
+- [x] **Step 1 — Write the failing tests.**
 
   Append to `duplicates_test.go`:
 
@@ -454,14 +454,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   These imports may need to be added — `os` is already used in `archives_test.go` via `mustMkdir`, so it should be present via that file's `import "os"`. If not, add `os` to the test file's imports.
 
-- [ ] **Step 2 — Run the tests, confirm behavior.**
+- [x] **Step 2 — Run the tests, confirm behavior.**
 
   Run: `go test ./internal/scan -run "TestDuplicateDetectorIgnoresEmptyFiles|TestDuplicateDetectorIgnoresSymlinks" -v`
   Expected: both PASS — the existing Phase 1 filter (`IsRegular()` excludes symlinks; `size < minSize` excludes empties since default `minSize=1`) already covers these cases. This task is a regression lock.
 
   If either fails, debug the Phase 1 filter — do **not** modify the test fixtures. The detector's behavior must match the spec's edge-case policy.
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
@@ -475,7 +475,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the failing test.**
+- [x] **Step 1 — Write the failing test.**
 
   Append to `duplicates_test.go`:
 
@@ -505,14 +505,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it passes.**
+- [x] **Step 2 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorTolerantOfUnreadableFile -v`
   Expected: PASS. The existing `hashFull` error path drops failing paths with `ok: false` and a stderr message; the aggregator skips `!r.ok` entries. Two readable copies survive and form a group.
 
   If it fails because `Walk` itself errors on the chmod-0 file before hashing, double-check that the test runs on macOS/Linux (the platform under development) — `filepath.Walk` reports `os.Lstat` results, which work on a file the running user owns regardless of mode.
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
@@ -527,7 +527,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Modify: `internal/scan/duplicates.go`
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write a test that exercises the prefix-pass shortcut.**
+- [x] **Step 1 — Write a test that exercises the prefix-pass shortcut.**
 
   Append to `duplicates_test.go`:
 
@@ -568,12 +568,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the tests; they pass against the current (non-optimized) code but lock behavior for the upcoming refactor.**
+- [x] **Step 2 — Run the tests; they pass against the current (non-optimized) code but lock behavior for the upcoming refactor.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorPrefix -v`
   Expected: both PASS. The full-hash pass alone correctly excludes both cases.
 
-- [ ] **Step 3 — Refactor `Detect` to add the prefix pre-pass.**
+- [x] **Step 3 — Refactor `Detect` to add the prefix pre-pass.**
 
   Replace the body of `Detect` and add the prefix helpers in `internal/scan/duplicates.go`. The full file becomes:
 
@@ -803,12 +803,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 4 — Run all scan tests.**
+- [x] **Step 4 — Run all scan tests.**
 
   Run: `go test ./internal/scan -v`
   Expected: every test in this file plus `archives_test.go` PASSES.
 
-- [ ] **Step 5 — Commit.**
+- [x] **Step 5 — Commit.**
 
   ```sh
   git add internal/scan/duplicates.go internal/scan/duplicates_test.go
@@ -822,7 +822,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `internal/scan/duplicates_test.go`
 
-- [ ] **Step 1 — Write the regression test.**
+- [x] **Step 1 — Write the regression test.**
 
   Append to `duplicates_test.go`:
 
@@ -855,17 +855,17 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Run the test, confirm it passes.**
+- [x] **Step 2 — Run the test, confirm it passes.**
 
   Run: `go test ./internal/scan -run TestDuplicateDetectorIdempotentAcrossWorkerCounts -race -v`
   Expected: PASS, no race warnings.
 
-- [ ] **Step 3 — Run the entire test suite under `-race` to catch latent goroutine bugs.**
+- [x] **Step 3 — Run the entire test suite under `-race` to catch latent goroutine bugs.**
 
   Run: `go test ./... -race`
   Expected: PASS for every package.
 
-- [ ] **Step 4 — Commit.**
+- [x] **Step 4 — Commit.**
 
   ```sh
   git add internal/scan/duplicates_test.go
@@ -879,7 +879,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `cmd/undup/main.go`
 
-- [ ] **Step 1 — Replace `cmd/undup/main.go` with the new wiring.**
+- [x] **Step 1 — Replace `cmd/undup/main.go` with the new wiring.**
 
   ```go
   package main
@@ -977,12 +977,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   }
   ```
 
-- [ ] **Step 2 — Build the binary.**
+- [x] **Step 2 — Build the binary.**
 
   Run: `go build ./cmd/undup`
   Expected: no errors; `./undup` produced in the current directory.
 
-- [ ] **Step 3 — Smoke-test `--mode archives` against a fixture (preserves current behavior).**
+- [x] **Step 3 — Smoke-test `--mode archives` against a fixture (preserves current behavior).**
 
   ```sh
   tmp=$(mktemp -d)
@@ -993,7 +993,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   ```
   Expected: one line like `Unpacked archive foo.zip [7 B] (<tmp>/foo)`.
 
-- [ ] **Step 4 — Smoke-test `--mode duplicates` against a fixture.**
+- [x] **Step 4 — Smoke-test `--mode duplicates` against a fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1010,12 +1010,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   b94d27b9  11  /var/folders/.../b.bin
   ```
 
-- [ ] **Step 5 — Confirm static checks pass.**
+- [x] **Step 5 — Confirm static checks pass.**
 
   Run: `go vet ./...`
   Expected: no output (no warnings).
 
-- [ ] **Step 6 — Commit.**
+- [x] **Step 6 — Commit.**
 
   ```sh
   git add cmd/undup/main.go
@@ -1029,7 +1029,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `cmd/undup/main.go`
 
-- [ ] **Step 1 — Replace the `case "all":` branch and add `runAll` + `tee` helpers.**
+- [x] **Step 1 — Replace the `case "all":` branch and add `runAll` + `tee` helpers.**
 
   In `cmd/undup/main.go`, replace the placeholder `case "all":` body:
 
@@ -1110,12 +1110,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   Note: the `import "sync"` statement above is for guidance — fold it into the existing `import (...)` block at the top of `main.go`.
 
-- [ ] **Step 2 — Build.**
+- [x] **Step 2 — Build.**
 
   Run: `go build ./cmd/undup`
   Expected: no errors.
 
-- [ ] **Step 3 — Smoke-test `--mode all` against a mixed fixture.**
+- [x] **Step 3 — Smoke-test `--mode all` against a mixed fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1134,17 +1134,17 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   dupe: b94d27b9  11  <tmp>/b.bin
   ```
 
-- [ ] **Step 4 — Run the full test suite under `-race`.**
+- [x] **Step 4 — Run the full test suite under `-race`.**
 
   Run: `go test ./... -race`
   Expected: PASS.
 
-- [ ] **Step 5 — Run static checks.**
+- [x] **Step 5 — Run static checks.**
 
   Run: `go vet ./...`
   Expected: no warnings.
 
-- [ ] **Step 6 — Commit.**
+- [x] **Step 6 — Commit.**
 
   ```sh
   git add cmd/undup/main.go
@@ -1158,7 +1158,7 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 **Files:**
 - Modify: `CLAUDE.md`
 
-- [ ] **Step 1 — Edit `CLAUDE.md` to describe the new file and CLI surface.**
+- [x] **Step 1 — Edit `CLAUDE.md` to describe the new file and CLI surface.**
 
   Apply these changes:
 
@@ -1184,12 +1184,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 
   3. Update the `cmd/undup/main.go` description to mention `--mode` and the three modes plus the tee for `all`.
 
-- [ ] **Step 2 — Confirm no other docs claim the old single-detector architecture.**
+- [x] **Step 2 — Confirm no other docs claim the old single-detector architecture.**
 
   Run: `rg -n "Four production files" .`
   Expected: no matches (the bullet you just rewrote was the only one).
 
-- [ ] **Step 3 — Commit.**
+- [x] **Step 3 — Commit.**
 
   ```sh
   git add CLAUDE.md
@@ -1204,12 +1204,12 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
 - Move: `docs/specs/20260513-sha256-duplicate-detector.md` — keep in place; only plans move per user CLAUDE.md.
 - Move: `docs/plans/20260513-sha256-duplicate-detector.md` → `docs/plans/completed/20260513-sha256-duplicate-detector.md`
 
-- [ ] **Step 1 — Final full-suite verification.**
+- [x] **Step 1 — Final full-suite verification.**
 
   Run: `go build ./... && go vet ./... && go test ./... -race`
   Expected: every step exits 0, no warnings, all tests PASS.
 
-- [ ] **Step 2 — End-to-end smoke against a richer fixture.**
+- [x] **Step 2 — End-to-end smoke against a richer fixture.**
 
   ```sh
   tmp=$(mktemp -d)
@@ -1225,14 +1225,14 @@ cmd/undup/main.go                 # MODIFIED — add --mode flag, dispatch, tee 
   ```
   Expected: two `archive:` lines (foo.zip, bar.tar.gz) and four `dupe:` lines forming two groups of 2.
 
-- [ ] **Step 3 — Move the completed plan.**
+- [x] **Step 3 — Move the completed plan.**
 
   ```sh
   mkdir -p docs/plans/completed
   git mv docs/plans/20260513-sha256-duplicate-detector.md docs/plans/completed/20260513-sha256-duplicate-detector.md
   ```
 
-- [ ] **Step 4 — Commit.**
+- [x] **Step 4 — Commit.**
 
   ```sh
   git commit -m "docs: archive completed SHA256 duplicate-detector plan"
