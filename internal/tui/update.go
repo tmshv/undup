@@ -2,6 +2,8 @@ package tui
 
 import (
 	"fmt"
+	"io/fs"
+	"path/filepath"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -14,6 +16,40 @@ type archMsg scan.ArchiveFinding
 type dupMsg scan.DuplicateGroup
 type scanHalfDoneMsg struct{ Source Source }
 type clearToastMsg struct{}
+
+type dirSizeMsg struct {
+	findingIdx, memberIdx int
+	size                  int64
+	err                   error
+}
+
+func walkDirSize(path string) (int64, error) {
+	var total int64
+	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if info.Mode().IsRegular() {
+			total += info.Size()
+		}
+		return nil
+	})
+	return total, err
+}
+
+func dirSizeCmd(findingIdx, memberIdx int, path string) tea.Cmd {
+	return func() tea.Msg {
+		size, err := walkDirSize(path)
+		return dirSizeMsg{findingIdx: findingIdx, memberIdx: memberIdx, size: size, err: err}
+	}
+}
 
 type actionResultMsg struct {
 	result ApplyResult
@@ -98,6 +134,20 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 	case clearToastMsg:
 		if time.Now().After(m.toastUntil.Add(-50 * time.Millisecond)) {
 			m.toast = ""
+		}
+		return m, nil
+
+	case dirSizeMsg:
+		if msg.findingIdx >= 0 && msg.findingIdx < len(m.findings) {
+			f := &m.findings[msg.findingIdx]
+			if msg.memberIdx >= 0 && msg.memberIdx < len(f.Members) {
+				if msg.err != nil {
+					f.Members[msg.memberIdx].SizeErr = msg.err
+					f.Members[msg.memberIdx].Selected = false
+				} else {
+					f.Members[msg.memberIdx].Size = msg.size
+				}
+			}
 		}
 		return m, nil
 
@@ -196,12 +246,22 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			r := rows[m.cursor]
-			if r.memberIdx == -1 {
-				m.findings[r.findingIdx].Expanded = !m.findings[r.findingIdx].Expanded
-				if m.cursor >= len(m.visibleRows()) {
-					m.cursor = len(m.visibleRows()) - 1
+			if r.memberIdx != -1 {
+				return m, nil
+			}
+			f := &m.findings[r.findingIdx]
+			f.Expanded = !f.Expanded
+			if m.cursor >= len(m.visibleRows()) {
+				m.cursor = len(m.visibleRows()) - 1
+			}
+			if f.Expanded && f.Source == SourceArchive {
+				for mi, mem := range f.Members {
+					if mem.IsDir && mem.Size == -1 && mem.SizeErr == nil {
+						return m, dirSizeCmd(r.findingIdx, mi, mem.Path)
+					}
 				}
 			}
+			return m, nil
 		case key.Matches(msg, keys.Toggle):
 			rows := m.visibleRows()
 			if len(rows) == 0 {

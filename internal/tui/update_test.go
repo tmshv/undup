@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -257,5 +259,57 @@ func TestUpdate_ConfirmYDispatches(t *testing.T) {
 	}
 	if cmd == nil {
 		t.Error("expected a tea.Cmd to perform the action")
+	}
+}
+
+func TestDirSizeWalk_SumsRegularFiles(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "a/x.bin"), make([]byte, 100))
+	mustWrite(t, filepath.Join(root, "a/y.bin"), make([]byte, 250))
+	mustWrite(t, filepath.Join(root, "z.bin"), make([]byte, 50))
+
+	got, err := walkDirSize(root)
+	if err != nil {
+		t.Fatalf("walkDirSize: %v", err)
+	}
+	if got != 400 {
+		t.Errorf("got = %d, want 400", got)
+	}
+}
+
+func TestUpdate_DirSizeMsgUpdatesMember(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(dirSizeMsg{findingIdx: 0, memberIdx: 1, size: 5000, err: nil})
+	if got := m.findings[0].Members[1].Size; got != 5000 {
+		t.Errorf("Size = %d, want 5000", got)
+	}
+}
+
+func TestUpdate_DirSizeMsgErrorMakesNonSelectable(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(dirSizeMsg{findingIdx: 0, memberIdx: 1, err: os.ErrPermission})
+	if m.findings[0].Members[1].Selectable() {
+		t.Error("member should be non-selectable after dir-size error")
+	}
+}
+
+func TestUpdate_ExpandTriggersDirSizeForArchive(t *testing.T) {
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "foo/x.bin"), []byte("hi"))
+	zipPath := filepath.Join(root, "foo.zip")
+	mustWrite(t, zipPath, []byte{})
+	m := NewModel(nil, nil, root)
+	m.findings = []Finding{FromArchive(scan.ArchiveFinding{
+		ArchivePath: zipPath,
+		DirPath:     filepath.Join(root, "foo"),
+		Size:        0,
+	})}
+	_, cmd := m.update(keyPress("enter"))
+	if cmd == nil {
+		t.Fatal("expected dir-size cmd on first expansion of archive group")
+	}
+	msg := cmd()
+	if _, ok := msg.(dirSizeMsg); !ok {
+		t.Errorf("cmd returned %T, want dirSizeMsg", msg)
 	}
 }
