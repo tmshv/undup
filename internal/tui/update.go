@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"time"
+
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 
@@ -10,6 +12,11 @@ import (
 type archMsg scan.ArchiveFinding
 type dupMsg scan.DuplicateGroup
 type scanHalfDoneMsg struct{ Source Source }
+type clearToastMsg struct{}
+
+func clearToastCmd() tea.Cmd {
+	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return clearToastMsg{} })
+}
 
 func recvArchiveCmd(ch <-chan scan.ArchiveFinding) tea.Cmd {
 	return func() tea.Msg {
@@ -63,7 +70,36 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case clearToastMsg:
+		if time.Now().After(m.toastUntil.Add(-50 * time.Millisecond)) {
+			m.toast = ""
+		}
+		return m, nil
+
 	case tea.KeyMsg:
+		if m.mode == modeMovePrompt {
+			switch msg.Type {
+			case tea.KeyEsc:
+				m.mode = modeBrowse
+				m.pending = actionNone
+				m.moveInput.Blur()
+				return m, nil
+			case tea.KeyEnter:
+				target := m.moveInput.Value()
+				if err := ValidateMoveTarget(target, m.scanRoot); err != nil {
+					m.toast = err.Error()
+					m.toastUntil = time.Now().Add(3 * time.Second)
+					return m, clearToastCmd()
+				}
+				m.moveTarget = target
+				m.moveInput.Blur()
+				m.mode = modeConfirm
+				return m, nil
+			}
+			var cmd tea.Cmd
+			m.moveInput, cmd = m.moveInput.Update(msg)
+			return m, cmd
+		}
 		if m.mode == modeConfirm {
 			switch {
 			case key.Matches(msg, keys.Confirm):
@@ -78,7 +114,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		if m.mode != modeBrowse {
-			return m, nil // modeMovePrompt handled in Task 11
+			return m, nil
 		}
 		switch {
 		case key.Matches(msg, keys.Up):
@@ -140,6 +176,18 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 			m.pending = actionDelete
 			m.mode = modeConfirm
+		case key.Matches(msg, keys.Move):
+			if !m.hasSelection() {
+				return m, nil
+			}
+			m.pending = actionMove
+			m.mode = modeMovePrompt
+			if m.moveTarget == "" {
+				m.moveInput.SetValue("")
+			} else {
+				m.moveInput.SetValue(m.moveTarget)
+			}
+			m.moveInput.Focus()
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
 		}

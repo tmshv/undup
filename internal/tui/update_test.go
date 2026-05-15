@@ -184,3 +184,49 @@ func TestUpdate_ConfirmCancelClosesModal(t *testing.T) {
 		t.Errorf("pending = %v, want actionNone", m.pending)
 	}
 }
+
+func TestUpdate_MoveOpensPrompt(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("m"))
+	if m.mode != modeMovePrompt {
+		t.Errorf("mode = %v, want modeMovePrompt", m.mode)
+	}
+}
+
+func TestUpdate_MovePromptEnterValidatesAndConfirms(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("m"))
+	m.moveInput.SetValue("/tmp/quarantine") // outside scanRoot=/scan/root
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != modeConfirm {
+		t.Errorf("mode = %v, want modeConfirm after valid target", m.mode)
+	}
+	if m.pending != actionMove {
+		t.Errorf("pending = %v, want actionMove", m.pending)
+	}
+	if m.moveTarget != "/tmp/quarantine" {
+		t.Errorf("moveTarget = %q, want /tmp/quarantine", m.moveTarget)
+	}
+}
+
+func TestUpdate_MovePromptInsideScanRootStays(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("m"))
+	m.moveInput.SetValue("/scan/root/sub")
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEnter})
+	if m.mode != modeMovePrompt {
+		t.Errorf("mode = %v, want modeMovePrompt (validation rejected)", m.mode)
+	}
+	if m.toast == "" {
+		t.Errorf("toast should be set on validation failure")
+	}
+}
+
+func TestUpdate_MovePromptEscCancels(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("m"))
+	m, _ = m.update(tea.KeyMsg{Type: tea.KeyEsc})
+	if m.mode != modeBrowse {
+		t.Errorf("mode = %v, want modeBrowse after Esc", m.mode)
+	}
+}
