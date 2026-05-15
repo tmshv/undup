@@ -65,3 +65,56 @@ func TestValidateMoveTarget(t *testing.T) {
 		})
 	}
 }
+
+func TestMoveAction_RelativeLayout(t *testing.T) {
+	root := t.TempDir()
+	target := t.TempDir()
+	src := filepath.Join(root, "sub/dir/file.bin")
+	mustWrite(t, src, []byte("payload"))
+
+	a := MoveAction{Target: target}
+	if err := a.Apply(Member{Path: src}, root); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	dest := filepath.Join(target, "sub/dir/file.bin")
+	data, err := os.ReadFile(dest)
+	if err != nil {
+		t.Fatalf("dest missing: %v", err)
+	}
+	if string(data) != "payload" {
+		t.Errorf("dest content = %q, want %q", data, "payload")
+	}
+	if _, err := os.Lstat(src); !os.IsNotExist(err) {
+		t.Errorf("source still exists: %v", err)
+	}
+}
+
+func TestMoveAction_CreatesParents(t *testing.T) {
+	root := t.TempDir()
+	target := filepath.Join(t.TempDir(), "newly/nested/parent")
+	src := filepath.Join(root, "f.bin")
+	mustWrite(t, src, []byte("x"))
+
+	if err := (MoveAction{Target: target}).Apply(Member{Path: src}, root); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "f.bin")); err != nil {
+		t.Errorf("target file not created: %v", err)
+	}
+}
+
+func TestMoveAction_RelEscapeFallback(t *testing.T) {
+	// member outside the scan root → falls back to filepath.Base
+	root := t.TempDir()
+	other := t.TempDir()
+	target := t.TempDir()
+	src := filepath.Join(other, "stray.bin")
+	mustWrite(t, src, []byte("y"))
+
+	if err := (MoveAction{Target: target}).Apply(Member{Path: src}, root); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(target, "stray.bin")); err != nil {
+		t.Errorf("fallback target missing: %v", err)
+	}
+}

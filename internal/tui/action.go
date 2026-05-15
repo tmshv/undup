@@ -1,10 +1,13 @@
 package tui
 
 import (
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 )
 
 // Action knows how to apply itself to one Member.
@@ -43,4 +46,57 @@ func ValidateMoveTarget(target, scanRoot string) error {
 		return fmt.Errorf("move target must be outside scan root")
 	}
 	return nil
+}
+
+// MoveAction relocates the member into Target preserving its path relative to
+// scanRoot. Cross-device renames fall back to copy-then-remove.
+type MoveAction struct{ Target string }
+
+func (a MoveAction) Apply(m Member, scanRoot string) error {
+	rel, err := filepath.Rel(scanRoot, m.Path)
+	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+		rel = filepath.Base(m.Path)
+	}
+	dest := filepath.Join(a.Target, rel)
+	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
+		return fmt.Errorf("mkdir parent: %w", err)
+	}
+	if err := os.Rename(m.Path, dest); err == nil {
+		return nil
+	} else if !isCrossDevice(err) {
+		return err
+	}
+	if err := copyFile(m.Path, dest); err != nil {
+		return err
+	}
+	return os.Remove(m.Path)
+}
+
+func isCrossDevice(err error) bool {
+	var linkErr *os.LinkError
+	if errors.As(err, &linkErr) {
+		return errors.Is(linkErr.Err, syscall.EXDEV)
+	}
+	return errors.Is(err, syscall.EXDEV)
+}
+
+func copyFile(src, dst string) error {
+	in, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer in.Close()
+	info, err := in.Stat()
+	if err != nil {
+		return err
+	}
+	out, err := os.OpenFile(dst, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, info.Mode())
+	if err != nil {
+		return err
+	}
+	if _, err := io.Copy(out, in); err != nil {
+		out.Close()
+		return err
+	}
+	return out.Close()
 }
