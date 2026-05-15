@@ -118,3 +118,47 @@ func TestMoveAction_RelEscapeFallback(t *testing.T) {
 		t.Errorf("fallback target missing: %v", err)
 	}
 }
+
+func TestApplyAction_DedupsByAbsPath(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "shared.bin")
+	mustWrite(t, p, []byte("z"))
+
+	// Same path shows up in two findings (e.g. archive + duplicate).
+	findings := []Finding{
+		{Members: []Member{{Path: p, Size: 1, Selected: true}}},
+		{Members: []Member{{Path: p, Size: 1, Selected: true}}},
+	}
+	res := ApplyAction(DeleteAction{}, root, findings)
+	if res.Ok != 1 {
+		t.Errorf("Ok = %d, want 1 (deduped)", res.Ok)
+	}
+	if res.Failed != 0 {
+		t.Errorf("Failed = %d, want 0", res.Failed)
+	}
+	if !res.Succeeded[p] {
+		t.Errorf("Succeeded[%q] = false, want true", p)
+	}
+}
+
+func TestApplyAction_SkipsUnselected(t *testing.T) {
+	root := t.TempDir()
+	keep := filepath.Join(root, "keep.bin")
+	gone := filepath.Join(root, "gone.bin")
+	mustWrite(t, keep, []byte("k"))
+	mustWrite(t, gone, []byte("g"))
+
+	findings := []Finding{
+		{Members: []Member{
+			{Path: keep, Size: 1, Selected: false},
+			{Path: gone, Size: 1, Selected: true},
+		}},
+	}
+	res := ApplyAction(DeleteAction{}, root, findings)
+	if res.Ok != 1 || res.Failed != 0 {
+		t.Errorf("res = %+v, want Ok=1 Failed=0", res)
+	}
+	if _, err := os.Lstat(keep); err != nil {
+		t.Errorf("keep was deleted: %v", err)
+	}
+}

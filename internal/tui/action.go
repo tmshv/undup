@@ -100,3 +100,46 @@ func copyFile(src, dst string) error {
 	}
 	return out.Close()
 }
+
+type ApplyResult struct {
+	Ok        int
+	Failed    int
+	Succeeded map[string]bool  // by member.Path (as displayed)
+	Errors    map[string]error // first error per failed path
+}
+
+// ApplyAction iterates every selected member across findings, deduplicating
+// by absolute path so the same file is never acted on twice. Errors per
+// member are collected; the action layer never aborts mid-way.
+func ApplyAction(action Action, scanRoot string, findings []Finding) ApplyResult {
+	res := ApplyResult{
+		Succeeded: make(map[string]bool),
+		Errors:    make(map[string]error),
+	}
+	seen := make(map[string]bool)
+	for _, f := range findings {
+		for _, m := range f.Members {
+			if !m.Selected || !m.Selectable() {
+				continue
+			}
+			abs, err := filepath.Abs(m.Path)
+			if err != nil {
+				res.Failed++
+				res.Errors[m.Path] = err
+				continue
+			}
+			if seen[abs] {
+				continue
+			}
+			seen[abs] = true
+			if err := action.Apply(m, scanRoot); err != nil {
+				res.Failed++
+				res.Errors[m.Path] = err
+				continue
+			}
+			res.Ok++
+			res.Succeeded[m.Path] = true
+		}
+	}
+	return res
+}
