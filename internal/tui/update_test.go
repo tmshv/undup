@@ -230,3 +230,32 @@ func TestUpdate_MovePromptEscCancels(t *testing.T) {
 		t.Errorf("mode = %v, want modeBrowse after Esc", m.mode)
 	}
 }
+
+func TestUpdate_ActionResultRemovesSucceededMembers(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m.findings[1].Members[1].Selected = true
+	res := ApplyResult{
+		Ok:        1,
+		Succeeded: map[string]bool{"/scan/root/b/x.bin": true},
+	}
+	m, _ = m.update(actionResultMsg{result: res, action: actionDelete})
+	// Finding 1 had 2 members; one removed -> remaining count 1 -> finding pruned.
+	if len(m.findings) != 1 {
+		t.Errorf("len(findings) = %d, want 1 (singleton group pruned)", len(m.findings))
+	}
+	if m.toast == "" {
+		t.Errorf("toast should be set after action")
+	}
+}
+
+func TestUpdate_ConfirmYDispatches(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("d"))
+	m, cmd := m.update(keyPress("y"))
+	if m.mode != modeApplying {
+		t.Errorf("mode = %v, want modeApplying after y", m.mode)
+	}
+	if cmd == nil {
+		t.Error("expected a tea.Cmd to perform the action")
+	}
+}

@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/charmbracelet/bubbles/key"
@@ -13,6 +14,30 @@ type archMsg scan.ArchiveFinding
 type dupMsg scan.DuplicateGroup
 type scanHalfDoneMsg struct{ Source Source }
 type clearToastMsg struct{}
+
+type actionResultMsg struct {
+	result ApplyResult
+	action pendingAction
+	target string
+}
+
+func applyActionCmd(action Action, scanRoot string, findings []Finding, kind pendingAction, target string) tea.Cmd {
+	snapshot := make([]Finding, len(findings))
+	copy(snapshot, findings)
+	return func() tea.Msg {
+		res := ApplyAction(action, scanRoot, snapshot)
+		return actionResultMsg{result: res, action: kind, target: target}
+	}
+}
+
+func max0(n int) int {
+	if n < 0 {
+		return 0
+	}
+	return n
+}
+
+func sprintToast(format string, a ...any) string { return fmt.Sprintf(format, a...) }
 
 func clearToastCmd() tea.Cmd {
 	return tea.Tick(3*time.Second, func(time.Time) tea.Msg { return clearToastMsg{} })
@@ -76,6 +101,35 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case actionResultMsg:
+		out := make([]Finding, 0, len(m.findings))
+		for _, f := range m.findings {
+			kept := make([]Member, 0, len(f.Members))
+			for _, mem := range f.Members {
+				if !msg.result.Succeeded[mem.Path] {
+					kept = append(kept, mem)
+				}
+			}
+			f.Members = kept
+			if len(f.Members) >= 2 {
+				out = append(out, f)
+			}
+		}
+		m.findings = out
+		if m.cursor >= len(m.visibleRows()) {
+			m.cursor = max0(len(m.visibleRows()) - 1)
+		}
+		switch msg.action {
+		case actionDelete:
+			m.toast = sprintToast("Deleted %d · failed %d", msg.result.Ok, msg.result.Failed)
+		case actionMove:
+			m.toast = sprintToast("Moved %d to %s · failed %d", msg.result.Ok, msg.target, msg.result.Failed)
+		}
+		m.toastUntil = time.Now().Add(3 * time.Second)
+		m.mode = modeBrowse
+		m.pending = actionNone
+		return m, clearToastCmd()
+
 	case tea.KeyMsg:
 		if m.mode == modeMovePrompt {
 			switch msg.Type {
@@ -103,9 +157,20 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		if m.mode == modeConfirm {
 			switch {
 			case key.Matches(msg, keys.Confirm):
-				m.mode = modeBrowse
-				m.pending = actionNone
-				return m, nil // action dispatch lands in Task 12
+				var action Action
+				switch m.pending {
+				case actionDelete:
+					action = DeleteAction{}
+				case actionMove:
+					action = MoveAction{Target: m.moveTarget}
+				default:
+					m.mode = modeBrowse
+					m.pending = actionNone
+					return m, nil
+				}
+				cmd := applyActionCmd(action, m.scanRoot, m.findings, m.pending, m.moveTarget)
+				m.mode = modeApplying
+				return m, cmd
 			case key.Matches(msg, keys.Cancel), key.Matches(msg, keys.Quit):
 				m.mode = modeBrowse
 				m.pending = actionNone
