@@ -119,6 +119,30 @@ func TestMoveAction_RelEscapeFallback(t *testing.T) {
 	}
 }
 
+func TestMoveAction_RefusesToOverwrite(t *testing.T) {
+	root := t.TempDir()
+	target := t.TempDir()
+	src := filepath.Join(root, "sub/file.bin")
+	mustWrite(t, src, []byte("new"))
+	dest := filepath.Join(target, "sub/file.bin")
+	mustWrite(t, dest, []byte("existing"))
+
+	err := (MoveAction{Target: target}).Apply(Member{Path: src}, root)
+	if err == nil {
+		t.Fatal("expected error when destination exists, got nil")
+	}
+	data, readErr := os.ReadFile(dest)
+	if readErr != nil {
+		t.Fatalf("dest disappeared: %v", readErr)
+	}
+	if string(data) != "existing" {
+		t.Errorf("dest content = %q, want %q (unmodified)", data, "existing")
+	}
+	if _, err := os.Lstat(src); err != nil {
+		t.Errorf("source removed despite failed move: %v", err)
+	}
+}
+
 func TestApplyAction_DedupsByAbsPath(t *testing.T) {
 	root := t.TempDir()
 	p := filepath.Join(root, "shared.bin")

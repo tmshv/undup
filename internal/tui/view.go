@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	helpLine = "↑/↓ move  space toggle  ⏎ expand  a sel-group  A defaults  c clear  d delete  m move  q quit"
+	helpLine = "↑/↓ move  g/G first/last  space toggle  ⏎ expand  a sel-group  A defaults  c clear  d delete  m move  q quit"
 )
 
 func (m Model) View() string {

@@ -291,6 +291,22 @@ func TestUpdate_DirSizeMsgErrorMakesNonSelectable(t *testing.T) {
 	if m.findings[0].Members[1].Selectable() {
 		t.Error("member should be non-selectable after dir-size error")
 	}
+	if m.toast == "" {
+		t.Error("expected toast set on dir-size error so user sees why selection was cleared")
+	}
+}
+
+func TestUpdate_FirstAndLastKeys(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("enter")) // expand finding 0 → 4 visible rows
+	m, _ = m.update(keyPress("G"))
+	if want := len(m.visibleRows()) - 1; m.cursor != want {
+		t.Errorf("G: cursor = %d, want %d", m.cursor, want)
+	}
+	m, _ = m.update(keyPress("g"))
+	if m.cursor != 0 {
+		t.Errorf("g: cursor = %d, want 0", m.cursor)
+	}
 }
 
 func TestUpdate_ExpandTriggersDirSizeForArchive(t *testing.T) {

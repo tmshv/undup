@@ -142,11 +142,14 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			f := &m.findings[msg.findingIdx]
 			if msg.memberIdx >= 0 && msg.memberIdx < len(f.Members) {
 				if msg.err != nil {
-					f.Members[msg.memberIdx].SizeErr = msg.err
-					f.Members[msg.memberIdx].Selected = false
-				} else {
-					f.Members[msg.memberIdx].Size = msg.size
+					mem := &f.Members[msg.memberIdx]
+					mem.SizeErr = msg.err
+					mem.Selected = false
+					m.toast = sprintToast("dir-size walk failed for %s: %v", mem.Path, msg.err)
+					m.toastUntil = time.Now().Add(3 * time.Second)
+					return m, clearToastCmd()
 				}
+				f.Members[msg.memberIdx].Size = msg.size
 			}
 		}
 		return m, nil
@@ -239,6 +242,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		case key.Matches(msg, keys.Down):
 			if m.cursor < len(m.visibleRows())-1 {
 				m.cursor++
+			}
+		case key.Matches(msg, keys.First):
+			m.cursor = 0
+		case key.Matches(msg, keys.Last):
+			if n := len(m.visibleRows()); n > 0 {
+				m.cursor = n - 1
 			}
 		case key.Matches(msg, keys.Expand):
 			rows := m.visibleRows()

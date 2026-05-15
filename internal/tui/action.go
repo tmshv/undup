@@ -58,6 +58,13 @@ func (a MoveAction) Apply(m Member, scanRoot string) error {
 		rel = filepath.Base(m.Path)
 	}
 	dest := filepath.Join(a.Target, rel)
+	// Refuse to overwrite: both os.Rename (on a non-dir) and the copy fallback
+	// (O_TRUNC) would silently clobber unrelated content at the destination.
+	if _, err := os.Lstat(dest); err == nil {
+		return fmt.Errorf("destination already exists: %s", dest)
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("stat destination: %w", err)
+	}
 	if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
 		return fmt.Errorf("mkdir parent: %w", err)
 	}

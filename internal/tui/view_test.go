@@ -32,8 +32,10 @@ func TestView_ConfirmModalRendered(t *testing.T) {
 	m.mode = modeConfirm
 	m.pending = actionDelete
 	out := m.View()
-	if !strings.Contains(strings.ToLower(out), "delete") {
-		t.Errorf("expected 'delete' in confirm modal:\n%s", out)
+	// "[y] yes" is unique to the confirm modal and not in the help line, so
+	// this fails if the modal is not rendered.
+	if !strings.Contains(out, "[y] yes") {
+		t.Errorf("expected confirm-modal-specific text in output:\n%s", out)
 	}
 }
 
@@ -41,7 +43,8 @@ func TestView_MovePromptRendered(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
 	m.mode = modeMovePrompt
 	out := m.View()
-	if !strings.Contains(strings.ToLower(out), "move") {
-		t.Errorf("expected 'move' in prompt:\n%s", out)
+	// "Esc to cancel" is unique to the move prompt; the help line says "q quit".
+	if !strings.Contains(out, "Esc to cancel") {
+		t.Errorf("expected move-prompt-specific text in output:\n%s", out)
 	}
 }
