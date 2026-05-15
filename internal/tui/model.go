@@ -82,7 +82,16 @@ func (m Model) visibleRows() []row {
 	return out
 }
 
-func (m Model) Init() tea.Cmd { return nil } // populated in Task 8
+func (m Model) Init() tea.Cmd {
+	var cmds []tea.Cmd
+	if m.archCh != nil {
+		cmds = append(cmds, recvArchiveCmd(m.archCh))
+	}
+	if m.dupCh != nil {
+		cmds = append(cmds, recvDuplicateCmd(m.dupCh))
+	}
+	return tea.Batch(cmds...)
+}
 
 // View is a stub until Task 14 implements rendering.
 func (m Model) View() string { return "" }

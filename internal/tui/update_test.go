@@ -4,6 +4,8 @@ import (
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
+
+	"github.com/tmshv/undup/internal/scan"
 )
 
 func keyPress(s string) tea.KeyMsg {
@@ -81,5 +83,34 @@ func TestUpdate_ToggleMemberSelection(t *testing.T) {
 	m, _ = m.update(keyPress(" "))     // toggle off
 	if m.findings[0].Members[0].Selected {
 		t.Error("member[0].Selected = true after toggle (was true initially)")
+	}
+}
+
+func TestUpdate_ArchMsgAppendsFinding(t *testing.T) {
+	m := NewModel(make(<-chan scan.ArchiveFinding), nil, "/scan/root")
+	m, _ = m.update(archMsg(scan.ArchiveFinding{
+		ArchivePath: "/scan/root/foo.zip",
+		DirPath:     "/scan/root/foo",
+		Size:        42,
+	}))
+	if len(m.findings) != 1 {
+		t.Fatalf("len(findings) = %d, want 1", len(m.findings))
+	}
+	if m.findings[0].Source != SourceArchive || m.findings[0].Label != "foo.zip" {
+		t.Errorf("got %+v", m.findings[0])
+	}
+}
+
+func TestUpdate_ScanHalfDoneMarksDone(t *testing.T) {
+	m := NewModel(make(<-chan scan.ArchiveFinding), make(<-chan scan.DuplicateGroup), "/scan/root")
+	if m.archDone || m.dupDone {
+		t.Fatalf("initial done flags wrong: arch=%v dup=%v", m.archDone, m.dupDone)
+	}
+	m, _ = m.update(scanHalfDoneMsg{Source: SourceArchive})
+	if !m.archDone {
+		t.Error("archDone = false after scanHalfDoneMsg")
+	}
+	if m.dupDone {
+		t.Error("dupDone flipped unexpectedly")
 	}
 }
