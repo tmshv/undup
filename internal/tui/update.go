@@ -27,14 +27,23 @@ func walkDirSize(path string) (int64, error) {
 	var total int64
 	err := filepath.WalkDir(path, func(p string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return err
+			// Root unreadable: surface the error so the user knows why.
+			if p == path {
+				return err
+			}
+			// Subentry unreadable: skip and keep walking — a single permission
+			// glitch shouldn't make an otherwise-actionable directory unusable.
+			if d != nil && d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
 		}
 		if d.IsDir() {
 			return nil
 		}
 		info, err := d.Info()
 		if err != nil {
-			return err
+			return nil
 		}
 		if info.Mode().IsRegular() {
 			total += info.Size()
@@ -58,8 +67,15 @@ type actionResultMsg struct {
 }
 
 func applyActionCmd(action Action, scanRoot string, findings []Finding, kind pendingAction, target string) tea.Cmd {
+	// Deep-copy Members so the action goroutine never reads a slice that the
+	// foreground Update can mutate (e.g. dirSizeMsg writing to .Selected/.Size).
 	snapshot := make([]Finding, len(findings))
-	copy(snapshot, findings)
+	for i, f := range findings {
+		members := make([]Member, len(f.Members))
+		copy(members, f.Members)
+		f.Members = members
+		snapshot[i] = f
+	}
 	return func() tea.Msg {
 		res := ApplyAction(action, scanRoot, snapshot)
 		return actionResultMsg{result: res, action: kind, target: target}

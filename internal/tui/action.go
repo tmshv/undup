@@ -103,9 +103,16 @@ func copyFile(src, dst string) error {
 	}
 	if _, err := io.Copy(out, in); err != nil {
 		out.Close()
+		// Remove the partial destination so the next attempt isn't blocked by
+		// the destination-exists guard in MoveAction.Apply.
+		os.Remove(dst)
 		return err
 	}
-	return out.Close()
+	if err := out.Close(); err != nil {
+		os.Remove(dst)
+		return err
+	}
+	return nil
 }
 
 type ApplyResult struct {

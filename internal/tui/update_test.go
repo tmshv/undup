@@ -328,6 +328,53 @@ func TestUpdate_CtrlCQuitsFromAnyMode(t *testing.T) {
 	}
 }
 
+func TestWalkDirSize_SkipsUnreadableSubdir(t *testing.T) {
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses permission bits")
+	}
+	root := t.TempDir()
+	mustWrite(t, filepath.Join(root, "readable/x.bin"), make([]byte, 100))
+	mustWrite(t, filepath.Join(root, "blocked/y.bin"), make([]byte, 9999))
+	blocked := filepath.Join(root, "blocked")
+	if err := os.Chmod(blocked, 0); err != nil {
+		t.Fatalf("chmod: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chmod(blocked, 0o755) })
+
+	got, err := walkDirSize(root)
+	if err != nil {
+		t.Fatalf("walkDirSize errored on unreadable subdir; want soft-skip: %v", err)
+	}
+	if got != 100 {
+		t.Errorf("got = %d, want 100 (readable file only)", got)
+	}
+}
+
+func TestApplyActionCmd_SnapshotIsolatedFromConcurrentMemberMutation(t *testing.T) {
+	root := t.TempDir()
+	p := filepath.Join(root, "f.bin")
+	mustWrite(t, p, []byte("x"))
+	m := NewModel(nil, nil, root)
+	m.findings = []Finding{{Members: []Member{{Path: p, Size: 1, Selected: true}}}}
+
+	cmd := applyActionCmd(DeleteAction{}, root, m.findings, actionDelete, "")
+	// Mutate the original Members backing array AFTER the snapshot is taken
+	// but BEFORE the action goroutine reads it. A shallow copy would let this
+	// mutation flip the snapshot's Selected to false and the file would survive.
+	m.findings[0].Members[0].Selected = false
+	msg := cmd()
+	res, ok := msg.(actionResultMsg)
+	if !ok {
+		t.Fatalf("cmd produced %T, want actionResultMsg", msg)
+	}
+	if res.result.Ok != 1 {
+		t.Errorf("Ok = %d, want 1 (snapshot must be insulated from foreground mutation)", res.result.Ok)
+	}
+	if _, err := os.Lstat(p); !os.IsNotExist(err) {
+		t.Errorf("file still exists: %v", err)
+	}
+}
+
 func TestUpdate_ExpandTriggersDirSizeForArchive(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, filepath.Join(root, "foo/x.bin"), []byte("hi"))
