@@ -184,6 +184,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, clearToastCmd()
 
 	case tea.KeyMsg:
+		// ctrl+c is the universal escape hatch — works from every mode,
+		// including modeApplying where all other keys are swallowed while
+		// a long-running action is in flight.
+		if msg.Type == tea.KeyCtrlC {
+			return m, tea.Quit
+		}
 		if m.mode == modeMovePrompt {
 			switch msg.Type {
 			case tea.KeyEsc:

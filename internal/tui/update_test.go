@@ -309,6 +309,25 @@ func TestUpdate_FirstAndLastKeys(t *testing.T) {
 	}
 }
 
+func TestUpdate_CtrlCQuitsFromAnyMode(t *testing.T) {
+	ctrlC := tea.KeyMsg{Type: tea.KeyCtrlC}
+	for _, mode := range []uiMode{modeBrowse, modeMovePrompt, modeConfirm, modeApplying} {
+		m := newModelWithFindings(sampleFindings()...)
+		m.mode = mode
+		_, cmd := m.update(ctrlC)
+		if cmd == nil {
+			t.Errorf("mode=%v: ctrl+c returned nil cmd, want tea.Quit", mode)
+			continue
+		}
+		if msg := cmd(); msg == nil {
+			t.Errorf("mode=%v: cmd produced nil msg, want QuitMsg", mode)
+			continue
+		} else if _, ok := msg.(tea.QuitMsg); !ok {
+			t.Errorf("mode=%v: cmd produced %T, want tea.QuitMsg", mode, msg)
+		}
+	}
+}
+
 func TestUpdate_ExpandTriggersDirSizeForArchive(t *testing.T) {
 	root := t.TempDir()
 	mustWrite(t, filepath.Join(root, "foo/x.bin"), []byte("hi"))
