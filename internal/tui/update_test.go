@@ -114,3 +114,40 @@ func TestUpdate_ScanHalfDoneMarksDone(t *testing.T) {
 		t.Error("dupDone flipped unexpectedly")
 	}
 }
+
+func TestUpdate_SelectAllInGroup(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("enter")) // expand finding 0 (cursor on group)
+	m, _ = m.update(keyPress("a"))     // select all members of finding 0
+	for i, mem := range m.findings[0].Members {
+		if mem.Selectable() && !mem.Selected {
+			t.Errorf("member[%d].Selected = false after 'a'", i)
+		}
+	}
+}
+
+func TestUpdate_ClearAll(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("c"))
+	for fi, f := range m.findings {
+		for mi, mem := range f.Members {
+			if mem.Selected {
+				t.Errorf("findings[%d].Members[%d].Selected = true after 'c'", fi, mi)
+			}
+		}
+	}
+}
+
+func TestUpdate_ApplyDefaults(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("c")) // clear everything first
+	m, _ = m.update(keyPress("A")) // re-apply defaults
+	// Archive finding default: archive selected, dir not.
+	if !m.findings[0].Members[0].Selected || m.findings[0].Members[1].Selected {
+		t.Errorf("archive defaults wrong: %+v", m.findings[0].Members)
+	}
+	// Duplicate finding default: keep first, select rest.
+	if m.findings[1].Members[0].Selected || !m.findings[1].Members[1].Selected {
+		t.Errorf("duplicate defaults wrong: %+v", m.findings[1].Members)
+	}
+}

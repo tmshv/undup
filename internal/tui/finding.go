@@ -74,3 +74,19 @@ func FromDuplicate(g scan.DuplicateGroup) Finding {
 		Members: members,
 	}
 }
+
+// applyDefaultSelection re-applies the per-source default selection rules
+// in place: archive sources select the archive (member 0); duplicate sources
+// select all members except the first (the canonical keep).
+func applyDefaultSelection(f *Finding) {
+	switch f.Source {
+	case SourceArchive:
+		for i := range f.Members {
+			f.Members[i].Selected = (i == 0) && f.Members[i].Selectable()
+		}
+	case SourceDuplicate:
+		for i := range f.Members {
+			f.Members[i].Selected = (i != 0) && f.Members[i].Selectable()
+		}
+	}
+}

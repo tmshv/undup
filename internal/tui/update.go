@@ -100,6 +100,27 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 					mem.Selected = !mem.Selected
 				}
 			}
+		case key.Matches(msg, keys.SelectGroup):
+			rows := m.visibleRows()
+			if len(rows) == 0 {
+				return m, nil
+			}
+			fi := rows[m.cursor].findingIdx
+			for i := range m.findings[fi].Members {
+				if m.findings[fi].Members[i].Selectable() {
+					m.findings[fi].Members[i].Selected = true
+				}
+			}
+		case key.Matches(msg, keys.ApplyDefault):
+			for fi := range m.findings {
+				applyDefaultSelection(&m.findings[fi])
+			}
+		case key.Matches(msg, keys.ClearAll):
+			for fi := range m.findings {
+				for mi := range m.findings[fi].Members {
+					m.findings[fi].Members[mi].Selected = false
+				}
+			}
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
 		}
