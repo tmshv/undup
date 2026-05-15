@@ -151,3 +151,36 @@ func TestUpdate_ApplyDefaults(t *testing.T) {
 		t.Errorf("duplicate defaults wrong: %+v", m.findings[1].Members)
 	}
 }
+
+func TestUpdate_DeleteOpensConfirmModal(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("d"))
+	if m.mode != modeConfirm {
+		t.Errorf("mode = %v, want modeConfirm", m.mode)
+	}
+	if m.pending != actionDelete {
+		t.Errorf("pending = %v, want actionDelete", m.pending)
+	}
+}
+
+func TestUpdate_DeleteWithNoSelectionIgnored(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	// Clear all selections.
+	m, _ = m.update(keyPress("c"))
+	m, _ = m.update(keyPress("d"))
+	if m.mode != modeBrowse {
+		t.Errorf("mode = %v, want modeBrowse (no selection -> no modal)", m.mode)
+	}
+}
+
+func TestUpdate_ConfirmCancelClosesModal(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m, _ = m.update(keyPress("d"))
+	m, _ = m.update(keyPress("n"))
+	if m.mode != modeBrowse {
+		t.Errorf("mode = %v, want modeBrowse after cancel", m.mode)
+	}
+	if m.pending != actionNone {
+		t.Errorf("pending = %v, want actionNone", m.pending)
+	}
+}

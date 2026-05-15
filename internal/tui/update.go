@@ -64,8 +64,21 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case tea.KeyMsg:
+		if m.mode == modeConfirm {
+			switch {
+			case key.Matches(msg, keys.Confirm):
+				m.mode = modeBrowse
+				m.pending = actionNone
+				return m, nil // action dispatch lands in Task 12
+			case key.Matches(msg, keys.Cancel), key.Matches(msg, keys.Quit):
+				m.mode = modeBrowse
+				m.pending = actionNone
+				return m, nil
+			}
+			return m, nil
+		}
 		if m.mode != modeBrowse {
-			return m, nil // modal handling lands in later tasks
+			return m, nil // modeMovePrompt handled in Task 11
 		}
 		switch {
 		case key.Matches(msg, keys.Up):
@@ -121,6 +134,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 					m.findings[fi].Members[mi].Selected = false
 				}
 			}
+		case key.Matches(msg, keys.Delete):
+			if !m.hasSelection() {
+				return m, nil
+			}
+			m.pending = actionDelete
+			m.mode = modeConfirm
 		case key.Matches(msg, keys.Quit):
 			return m, tea.Quit
 		}

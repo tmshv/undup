@@ -68,6 +68,18 @@ type row struct {
 	memberIdx  int // -1 == group header
 }
 
+// hasSelection reports whether any selectable member is currently selected.
+func (m Model) hasSelection() bool {
+	for _, f := range m.findings {
+		for _, mem := range f.Members {
+			if mem.Selected {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func (m Model) visibleRows() []row {
 	var out []row
 	for fi, f := range m.findings {
