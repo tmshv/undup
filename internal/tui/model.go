@@ -104,6 +104,3 @@ func (m Model) Init() tea.Cmd {
 	}
 	return tea.Batch(cmds...)
 }
-
-// View is a stub until Task 14 implements rendering.
-func (m Model) View() string { return "" }
