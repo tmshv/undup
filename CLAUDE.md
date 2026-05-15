@@ -10,6 +10,7 @@ go build ./cmd/undup                       # produces ./undup binary
 ./undup -j 4 <root>                        # 4 parallel walkers, archives mode
 ./undup --mode hashsum -j 10 <root>        # SHA256 duplicate-file detector
 ./undup --mode all -j 10 <root>            # both detectors, single walk via tee
+./undup --tui --mode all -j 10 <root>      # interactive TUI over both detectors
 ./undup --help                             # kong-generated usage
 go run ./cmd/undup <root>                  # run without producing a binary
 ```
@@ -24,6 +25,7 @@ Single-purpose CLI. Five production files plus two test files:
 - `internal/scan/scan.go` — the filesystem walker — `Walk(root, workers)` returns `<-chan Entry`. With `workers == 1` it runs a single `filepath.Walk` (lexical order). With `workers > 1` it fans out across the immediate subdirectories of `root`; emission order is not guaranteed.
 - `internal/scan/archives.go` — the archive detector — stateless per-entry transformer. For each file it tests known extensions (longest-first), strips the suffix to derive a candidate directory path, runs `os.Lstat`, and emits a finding when the candidate exists and is a directory. Walk errors are written to stderr.
 - `internal/scan/duplicates.go` — content-hash duplicate detector — Phase 1 drains the walk into a `map[size][]path`, Phase 2 runs a 4 KiB prefix-hash pass then a full SHA256 pass through a worker pool sized by `-j`. Stateful per run, but output is order-independent (paths inside each emitted group are lexicographically sorted so output is stable across runs and worker counts).
+- `internal/tui/` — bubbletea-based interactive view. `Run(archCh, dupCh, scanRoot)` launches the program. `Finding` unifies `ArchiveFinding` (2 members: archive + dir) and `DuplicateGroup` (N members: paths) so one table can show both. `--tui` / `-i` flag in `cmd/undup/main.go` dispatches to `runTUI`, which reuses the existing scan pipeline. Actions: `delete` (file or recursive dir) and `move` (preserves path relative to scan root, refuses targets equal to or inside the scan root).
 - `internal/scan/extensions.go` — hard-coded list of archive extensions (`.zip`, `.7z`, `.rar`, `.tar`, `.tar.gz`).
 - `internal/scan/archives_test.go` — table-driven tests for `ArchiveDetector.Detect` against fixture trees built in `t.TempDir()`.
 - `internal/scan/duplicates_test.go` — table-driven tests for `DuplicateDetector.Detect` covering size grouping, prefix-pass shortcutting, empty-file and symlink skipping, read-error tolerance, and worker-count idempotency.

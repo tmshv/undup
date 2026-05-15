@@ -58,3 +58,15 @@ dupe: b94d27b9  524288  /home/me/Downloads/backup/photo-001.raw
 ```
 
 In `--mode all` lines are prefixed (`archive:` / `dupe:`) so output is easy to grep. Archive findings stream while the walk is in progress; duplicate findings appear together once all files have been hashed.
+
+### Interactive TUI
+
+```sh
+./undup --tui /path/to/root             # archives only (matches -m default)
+./undup --tui -m all /path/to/root      # both detectors in one view
+./undup --tui -m hashsum /path/to/root  # duplicates only
+```
+
+The TUI streams findings into a unified table. Press `space` to toggle, `enter`
+to expand a group, `d` to delete the selection, `m` to move it elsewhere
+(target must be outside the scan root). Press `?` for the keymap, `q` to quit.
