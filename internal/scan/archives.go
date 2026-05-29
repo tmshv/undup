@@ -46,7 +46,13 @@ func (d *ArchiveDetector) Detect(entries <-chan Entry) <-chan ArchiveFinding {
 				fmt.Fprintf(os.Stderr, "error scanning %s: %v\n", e.Path, e.Err)
 				continue
 			}
-			if e.Info.IsDir() {
+			// Only regular files are eligible. Symlinks would be silently
+			// converted to regular copies by the cross-device move
+			// fallback (os.Open follows them); FIFOs/devices/sockets can
+			// fail or block on open. Skipping them at the detector keeps
+			// the action layer free of mode checks and matches the
+			// duplicate detector's filtering.
+			if e.Info == nil || !e.Info.Mode().IsRegular() {
 				continue
 			}
 			for _, ext := range d.extensions {

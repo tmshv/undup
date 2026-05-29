@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -11,12 +13,14 @@ import (
 	"github.com/alecthomas/kong"
 
 	"github.com/tmshv/undup/internal/scan"
+	"github.com/tmshv/undup/internal/tui"
 )
 
 var cli struct {
 	Root    string `arg:"" type:"existingdir" help:"Root directory to scan."`
 	Workers int    `short:"j" default:"1" help:"Number of parallel walker / hash workers (must be >= 1)."`
 	Mode    string `short:"m" default:"archives" enum:"archives,hashsum,all" help:"Detector to run: archives, hashsum, or all."`
+	TUI     bool   `short:"i" name:"tui" help:"Launch interactive TUI."`
 }
 
 func main() {
@@ -30,6 +34,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	if cli.TUI {
+		if err := runTUI(cli.Root, cli.Workers, cli.Mode); err != nil {
+			fmt.Fprintln(os.Stderr, "undup:", err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	switch cli.Mode {
 	case "archives":
 		runArchives(cli.Root, cli.Workers)
@@ -38,6 +50,54 @@ func main() {
 	case "all":
 		runAll(cli.Root, cli.Workers)
 	}
+}
+
+func runTUI(root string, workers int, mode string) error {
+	// The scan layer (tee, archive detector, duplicate detector) writes errors
+	// directly to os.Stderr. Bubbletea uses the alternate screen, so any stderr
+	// write during the program run would corrupt the rendered TUI. Capture
+	// stderr to a pipe, drain it into a buffer, restore stderr, and replay the
+	// buffer once the TUI has exited.
+	origStderr := os.Stderr
+	r, w, err := os.Pipe()
+	if err != nil {
+		return fmt.Errorf("pipe stderr: %w", err)
+	}
+	os.Stderr = w
+	var stderrBuf bytes.Buffer
+	var drainWG sync.WaitGroup
+	drainWG.Add(1)
+	go func() {
+		defer drainWG.Done()
+		_, _ = io.Copy(&stderrBuf, r)
+	}()
+	defer func() {
+		os.Stderr = origStderr
+		_ = w.Close()
+		drainWG.Wait()
+		_ = r.Close()
+		if stderrBuf.Len() > 0 {
+			_, _ = io.Copy(origStderr, &stderrBuf)
+		}
+	}()
+
+	entries := scan.Walk(root, workers)
+
+	var archCh <-chan scan.ArchiveFinding
+	var dupCh <-chan scan.DuplicateGroup
+
+	switch mode {
+	case "archives":
+		archCh = scan.NewArchiveDetector(scan.Extensions).Detect(entries)
+	case "hashsum":
+		dupCh = scan.NewDuplicateDetector(workers, 4096, 1).Detect(entries)
+	case "all":
+		a, d := tee(entries)
+		archCh = scan.NewArchiveDetector(scan.Extensions).Detect(a)
+		dupCh = scan.NewDuplicateDetector(workers, 4096, 1).Detect(d)
+	}
+
+	return tui.Run(archCh, dupCh, root)
 }
 
 func runArchives(root string, workers int) {

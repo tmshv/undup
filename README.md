@@ -58,3 +58,33 @@ dupe: b94d27b9  524288  /home/me/Downloads/backup/photo-001.raw
 ```
 
 In `--mode all` lines are prefixed (`archive:` / `dupe:`) so output is easy to grep. Archive findings stream while the walk is in progress; duplicate findings appear together once all files have been hashed.
+
+### Interactive TUI
+
+```sh
+./undup --tui /path/to/root             # archives only (matches -m default)
+./undup -i -m all /path/to/root         # both detectors in one view (-i is the short alias)
+./undup --tui -m hashsum /path/to/root  # duplicates only
+```
+
+The TUI streams findings into a unified table. The status row reports scan
+progress, selected / selectable counts, and the byte total that will be
+reclaimed if you apply the action.
+
+Key bindings:
+
+- Navigation: `↑`/`k`, `↓`/`j` move cursor; `g` / `G` jump to first / last row.
+- Selection: `space` toggle current member; `a` select every member of the
+  current group; `A` re-apply per-source default selection across all findings;
+  `c` clear all selections.
+- Actions: `d` delete; `m` move; `enter` expand / collapse a group.
+- Modal / prompt: `y` confirm; `n` or `Esc` cancel.
+- Other: `q` or `ctrl+c` quit.
+
+Move targets must be outside the scan root. Moved files land at
+`<target>/<path relative to scan root>`; missing parent directories are
+created. Cross-device renames fall back to copy-then-remove. A move is
+refused if a file already exists at the destination — it will not overwrite.
+
+Selecting an archive's unpacked directory and pressing `d` removes it
+recursively; the confirm modal highlights this case before applying.

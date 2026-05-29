@@ -1,0 +1,151 @@
+package tui
+
+import (
+	"encoding/hex"
+	"path/filepath"
+
+	"github.com/tmshv/undup/internal/scan"
+)
+
+type Source int
+
+const (
+	SourceArchive Source = iota
+	SourceDuplicate
+)
+
+func (s Source) Tag() string {
+	switch s {
+	case SourceArchive:
+		return "arc"
+	case SourceDuplicate:
+		return "dup"
+	}
+	return "?"
+}
+
+// Member is one selectable path inside a Finding.
+type Member struct {
+	Path     string
+	Size     int64 // -1 if unresolved (archive directory pending dir-size walk)
+	IsDir    bool
+	Selected bool
+	// SizeErr non-nil means this member is non-selectable (size walk failed).
+	SizeErr error
+}
+
+// Selectable reports whether the member can participate in selection / actions.
+// A member with a failed size walk is excluded from selection so its bytes
+// don't pollute the reclaim total.
+func (m Member) Selectable() bool { return m.SizeErr == nil }
+
+// Finding groups together a set of members that the user can act on.
+type Finding struct {
+	Source   Source
+	Label    string
+	Members  []Member
+	Expanded bool
+}
+
+func FromArchive(f scan.ArchiveFinding) Finding {
+	return Finding{
+		Source: SourceArchive,
+		Label:  filepath.Base(f.ArchivePath),
+		Members: []Member{
+			{Path: f.ArchivePath, Size: f.Size, IsDir: false, Selected: true},
+			{Path: f.DirPath, Size: -1, IsDir: true, Selected: false},
+		},
+	}
+}
+
+func FromDuplicate(g scan.DuplicateGroup) Finding {
+	members := make([]Member, len(g.Paths))
+	for i, p := range g.Paths {
+		members[i] = Member{
+			Path:     p,
+			Size:     g.Size,
+			IsDir:    false,
+			Selected: i != 0, // keep the lexicographically-first path
+		}
+	}
+	return Finding{
+		Source:  SourceDuplicate,
+		Label:   hex.EncodeToString(g.SHA256[:4]),
+		Members: members,
+	}
+}
+
+// totalSize is the group's ranking metric: the sum of every member's bytes,
+// independent of selection. Members with an unresolved size (e.g. an archive's
+// directory before its size walk completes, Size == -1) contribute 0 until the
+// size resolves.
+func (f Finding) totalSize() int64 {
+	var t int64
+	for _, m := range f.Members {
+		if m.Size > 0 {
+			t += m.Size
+		}
+	}
+	return t
+}
+
+// key is a stable identity for the group, used to keep the cursor on the same
+// finding when the list reorders. Member paths are unique, so the first
+// member's path identifies the group.
+func (f Finding) key() string {
+	if len(f.Members) > 0 {
+		return f.Members[0].Path
+	}
+	return f.Label
+}
+
+// cycleGroupSelection advances a single group through the three selection
+// states, wrapping: all-except-one → all → none → all-except-one. The next
+// state is derived from the group's current selection so the cycle stays
+// coherent even after the user space-toggles individual members. Only
+// selectable members are counted or selected; the "all-except-one" state
+// reuses the per-source default keep (applyDefaultSelection).
+func cycleGroupSelection(f *Finding) {
+	n, sel := 0, 0
+	for i := range f.Members {
+		if !f.Members[i].Selectable() {
+			continue
+		}
+		n++
+		if f.Members[i].Selected {
+			sel++
+		}
+	}
+	switch {
+	case n == 0:
+		return
+	case sel == n-1: // all-except-one → all
+		for i := range f.Members {
+			if f.Members[i].Selectable() {
+				f.Members[i].Selected = true
+			}
+		}
+	case sel == n: // all → none
+		for i := range f.Members {
+			f.Members[i].Selected = false
+		}
+	default: // none / arbitrary → all-except-one (per-source default keep)
+		applyDefaultSelection(f)
+	}
+}
+
+// applyDefaultSelection re-applies the per-source default selection rules
+// in place: archive sources select the archive (member 0); duplicate sources
+// select all members except the first (the canonical keep).
+func applyDefaultSelection(f *Finding) {
+	switch f.Source {
+	case SourceArchive:
+		for i := range f.Members {
+			f.Members[i].Selected = (i == 0) && f.Members[i].Selectable()
+		}
+	case SourceDuplicate:
+		for i := range f.Members {
+			f.Members[i].Selected = (i != 0) && f.Members[i].Selectable()
+		}
+	}
+}
