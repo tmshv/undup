@@ -78,6 +78,7 @@ func (m Model) tableBody() string {
 	if len(rows) == 0 {
 		return dimStyle.Render("  (no findings yet)\n")
 	}
+	w := maxWidth(m.width, 60)
 	start, end := m.viewport()
 	var b strings.Builder
 	for i := start; i < end; i++ {
@@ -89,8 +90,11 @@ func (m Model) tableBody() string {
 			if f.Expanded {
 				indicator = "▼"
 			}
-			line = fmt.Sprintf("%s %s  %-20s   %10s   %d",
-				indicator, f.Source.Tag(), truncate(f.Label, 20), groupSizeLabel(f), len(f.Members))
+			// Group header: "▼ dup  <label fills>            <size>  <count>"
+			prefix := fmt.Sprintf("%s %s  ", indicator, f.Source.Tag())
+			right := fmt.Sprintf("%10s  %3d", groupSizeLabel(f), len(f.Members))
+			labelW := flexWidth(w, lipgloss.Width(prefix), lipgloss.Width(right))
+			line = prefix + padRight(truncate(f.Label, labelW), labelW) + "  " + right
 		} else {
 			mem := f.Members[r.memberIdx]
 			check := "[ ]"
@@ -100,15 +104,38 @@ func (m Model) tableBody() string {
 			if !mem.Selectable() {
 				check = "[!]"
 			}
-			line = fmt.Sprintf("    %s %s   %s",
-				check, truncate(mem.Path, 50), memberSizeLabel(mem))
+			// Member: "    [x] <path fills>            <size>     " — the five
+			// trailing spaces align the size column with the group header's.
+			prefix := "    " + check + " "
+			right := fmt.Sprintf("%10s     ", memberSizeLabel(mem))
+			pathW := flexWidth(w, lipgloss.Width(prefix), lipgloss.Width(right))
+			line = prefix + padRight(truncate(mem.Path, pathW), pathW) + "  " + right
 		}
 		if i == m.cursor {
-			line = cursorStyle.Render(line)
+			line = cursorStyle.Render(padRight(line, w))
 		}
 		b.WriteString(line + "\n")
 	}
 	return b.String()
+}
+
+// flexWidth is the width left for the flexible middle column (path or label)
+// after the row prefix, a 2-space gap, and the fixed right column. Clamped so a
+// very narrow terminal still leaves room for a few characters.
+func flexWidth(total, prefix, right int) int {
+	w := total - prefix - 2 - right
+	if w < 8 {
+		return 8
+	}
+	return w
+}
+
+// padRight pads s with spaces to display width w (no-op if already wider).
+func padRight(s string, w int) string {
+	if gap := w - lipgloss.Width(s); gap > 0 {
+		return s + strings.Repeat(" ", gap)
+	}
+	return s
 }
 
 // viewport returns the [start, end) slice of visibleRows() currently on screen.

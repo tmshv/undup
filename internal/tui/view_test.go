@@ -54,6 +54,54 @@ func TestView_BrowseMode_WithFindings(t *testing.T) {
 	}
 }
 
+func TestView_FullWidthPathNotTruncated(t *testing.T) {
+	longPath := "/scan/root/some/deeply/nested/directory/structure/file-name.bin"
+	f := Finding{Source: SourceDuplicate, Label: "abcd1234", Expanded: true, Members: []Member{
+		{Path: longPath, Size: 50},
+		{Path: longPath + ".2", Size: 50, Selected: true},
+	}}
+	m := newModelWithFindings(f)
+	m.width, m.height = 120, 24
+	out := m.View()
+	if !strings.Contains(out, longPath) {
+		t.Errorf("path truncated on a 120-col terminal; want full %q in:\n%s", longPath, out)
+	}
+}
+
+func TestView_FullWidthLabelNotTruncated(t *testing.T) {
+	longLabel := "a-very-long-archive-filename-that-exceeds-twenty-characters.tar.gz"
+	f := Finding{Source: SourceArchive, Label: longLabel, Members: []Member{
+		{Path: "/x/" + longLabel, Size: 100, Selected: true},
+		{Path: "/x/dir", IsDir: true, Size: -1},
+	}}
+	m := newModelWithFindings(f)
+	m.width, m.height = 120, 24
+	out := m.View()
+	if !strings.Contains(out, longLabel) {
+		t.Errorf("group label truncated on a 120-col terminal; want full %q in:\n%s", longLabel, out)
+	}
+}
+
+func TestView_PathTruncatedWhenTooNarrow(t *testing.T) {
+	longPath := "/scan/root/some/deeply/nested/directory/structure/file-name.bin"
+	f := Finding{Source: SourceDuplicate, Label: "abcd1234", Expanded: true, Members: []Member{
+		{Path: longPath, Size: 50},
+		{Path: "/scan/root/short.bin", Size: 50, Selected: true},
+	}}
+	m := newModelWithFindings(f)
+	m.width, m.height = 50, 24
+	out := m.View()
+	if strings.Contains(out, longPath) {
+		t.Errorf("path should be truncated on a 50-col terminal:\n%s", out)
+	}
+	if !strings.Contains(out, "…") {
+		t.Errorf("expected leading … truncation marker:\n%s", out)
+	}
+	if !strings.Contains(out, "file-name.bin") {
+		t.Errorf("filename tail should survive truncation:\n%s", out)
+	}
+}
+
 func TestView_ConfirmModalRendered(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
 	m.mode = modeConfirm
