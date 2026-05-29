@@ -1,8 +1,10 @@
 package tui
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -59,6 +61,51 @@ func TestUpdate_CursorMovement(t *testing.T) {
 	m, _ = m.update(keyPress("up"))
 	if m.cursor != 0 {
 		t.Errorf("after up: cursor = %d, want 0", m.cursor)
+	}
+}
+
+// helper: run msg through the public Update (which clamps scroll) and recover
+// the concrete Model.
+func step(m Model, msg tea.Msg) Model {
+	tm, _ := m.Update(msg)
+	return tm.(Model)
+}
+
+func TestScroll_FirstAndLastStayVisible(t *testing.T) {
+	m := newModelWithFindings(longDuplicateFinding(100))
+	m.height, m.width = 20, 80
+
+	m = step(m, keyPress("G")) // jump to last row
+	out := m.View()
+	if !strings.Contains(out, "file-099.bin") {
+		t.Errorf("last member not visible after G:\n%s", out)
+	}
+	if strings.Count(out, "\n") > m.height {
+		t.Errorf("view overflows height after G:\n%s", out)
+	}
+
+	m = step(m, keyPress("g")) // jump back to first row
+	out = m.View()
+	if !strings.Contains(out, "file-000.bin") {
+		t.Errorf("first member not visible after g:\n%s", out)
+	}
+}
+
+func TestScroll_DownScrollsWindow(t *testing.T) {
+	m := newModelWithFindings(longDuplicateFinding(100))
+	m.height, m.width = 20, 80
+	// Walk the cursor past the bottom of the initial window; the visible
+	// window must follow so the cursor row is always rendered.
+	for range 40 {
+		m = step(m, keyPress("down"))
+	}
+	out := m.View()
+	if m.scrollOffset == 0 {
+		t.Errorf("scrollOffset still 0 after scrolling down 40 rows")
+	}
+	wantPath := fmt.Sprintf("file-%03d.bin", m.cursor-1) // member rows are 1-based after the header
+	if !strings.Contains(out, wantPath) {
+		t.Errorf("cursor row %q not visible:\n%s", wantPath, out)
 	}
 }
 
@@ -279,7 +326,7 @@ func TestDirSizeWalk_SumsRegularFiles(t *testing.T) {
 
 func TestUpdate_DirSizeMsgUpdatesMember(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
-	m, _ = m.update(dirSizeMsg{findingIdx: 0, memberIdx: 1, size: 5000, err: nil})
+	m, _ = m.update(dirSizeMsg{path: "/scan/root/foo", size: 5000, err: nil})
 	if got := m.findings[0].Members[1].Size; got != 5000 {
 		t.Errorf("Size = %d, want 5000", got)
 	}
@@ -287,12 +334,29 @@ func TestUpdate_DirSizeMsgUpdatesMember(t *testing.T) {
 
 func TestUpdate_DirSizeMsgErrorMakesNonSelectable(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
-	m, _ = m.update(dirSizeMsg{findingIdx: 0, memberIdx: 1, err: os.ErrPermission})
+	m, _ = m.update(dirSizeMsg{path: "/scan/root/foo", err: os.ErrPermission})
 	if m.findings[0].Members[1].Selectable() {
 		t.Error("member should be non-selectable after dir-size error")
 	}
 	if m.toast == "" {
 		t.Error("expected toast set on dir-size error so user sees why selection was cleared")
+	}
+}
+
+// Regression: positional indices (findingIdx/memberIdx) went stale after an
+// action pruned the original finding, letting a late dir-size walk overwrite
+// or deselect a member of an unrelated finding. Keying by path makes stale
+// messages a no-op.
+func TestUpdate_DirSizeMsgStaleAfterPruneDoesNotCorruptOtherFinding(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	// Simulate the archive finding being pruned by an earlier action: drop
+	// finding 0 entirely so the duplicate finding is now at index 0.
+	m.findings = m.findings[1:]
+	// dir-size walk for the now-gone archive's directory returns late.
+	before := m.findings[0].Members[1].Size
+	m, _ = m.update(dirSizeMsg{path: "/scan/root/foo", size: 9999, err: nil})
+	if got := m.findings[0].Members[1].Size; got != before {
+		t.Errorf("stale dir-size msg updated the wrong row: got %d, want %d", got, before)
 	}
 }
 
@@ -309,9 +373,9 @@ func TestUpdate_FirstAndLastKeys(t *testing.T) {
 	}
 }
 
-func TestUpdate_CtrlCQuitsFromAnyMode(t *testing.T) {
+func TestUpdate_CtrlCQuitsFromInteractiveModes(t *testing.T) {
 	ctrlC := tea.KeyMsg{Type: tea.KeyCtrlC}
-	for _, mode := range []uiMode{modeBrowse, modeMovePrompt, modeConfirm, modeApplying} {
+	for _, mode := range []uiMode{modeBrowse, modeMovePrompt, modeConfirm} {
 		m := newModelWithFindings(sampleFindings()...)
 		m.mode = mode
 		_, cmd := m.update(ctrlC)
@@ -324,6 +388,30 @@ func TestUpdate_CtrlCQuitsFromAnyMode(t *testing.T) {
 			continue
 		} else if _, ok := msg.(tea.QuitMsg); !ok {
 			t.Errorf("mode=%v: cmd produced %T, want tea.QuitMsg", mode, msg)
+		}
+	}
+}
+
+// In modeApplying a confirmed delete/move is already running as a tea.Cmd
+// goroutine. Quitting now would terminate the process mid-action and could
+// strand a half-removed directory or half-copied destination, so ctrl+c is
+// swallowed with a warning toast until the action completes.
+func TestUpdate_CtrlCInApplyingDoesNotQuit(t *testing.T) {
+	m := newModelWithFindings(sampleFindings()...)
+	m.mode = modeApplying
+	m2, cmd := m.update(tea.KeyMsg{Type: tea.KeyCtrlC})
+	if m2.mode != modeApplying {
+		t.Errorf("mode = %v, want modeApplying preserved", m2.mode)
+	}
+	if m2.toast == "" {
+		t.Error("expected toast warning that action is in progress")
+	}
+	if cmd == nil {
+		t.Fatal("expected toast-clear cmd, got nil")
+	}
+	if msg := cmd(); msg != nil {
+		if _, ok := msg.(tea.QuitMsg); ok {
+			t.Error("ctrl+c in modeApplying should NOT produce QuitMsg")
 		}
 	}
 }

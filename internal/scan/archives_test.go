@@ -100,6 +100,32 @@ func TestDetectIgnoresFilesWithDotPrefixedExtensionNames(t *testing.T) {
 	}
 }
 
+// Regression: a symlink whose name matches an archive extension would
+// otherwise be reported as an archive finding, and the cross-device
+// MoveAction fallback would silently replace the link with a regular copy
+// of the target's bytes. Non-regular files are not eligible findings.
+func TestDetectIgnoresNonRegularFiles(t *testing.T) {
+	root := t.TempDir()
+
+	mustMkdir(t, filepath.Join(root, "foo"))
+	target := filepath.Join(root, "elsewhere.zip")
+	mustWrite(t, target, []byte("zipdata"))
+	if err := os.Symlink(target, filepath.Join(root, "foo.zip")); err != nil {
+		t.Skipf("symlink unsupported on this platform: %v", err)
+	}
+
+	d := NewArchiveDetector(Extensions)
+	var got []ArchiveFinding
+	for f := range d.Detect(Walk(root, 1)) {
+		got = append(got, f)
+	}
+	for _, f := range got {
+		if filepath.Base(f.ArchivePath) == "foo.zip" {
+			t.Errorf("symlink foo.zip emitted as finding: %+v", f)
+		}
+	}
+}
+
 func mustMkdir(t *testing.T, path string) {
 	t.Helper()
 	if err := os.MkdirAll(path, 0o755); err != nil {

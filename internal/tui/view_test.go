@@ -1,9 +1,36 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 )
+
+// longDuplicateFinding builds an expanded duplicate group with n members, used
+// to exercise viewport windowing when a group does not fit on screen.
+func longDuplicateFinding(n int) Finding {
+	members := make([]Member, n)
+	for i := range members {
+		members[i] = Member{
+			Path:     fmt.Sprintf("/scan/root/dup/file-%03d.bin", i),
+			Size:     50,
+			Selected: i != 0,
+		}
+	}
+	return Finding{Source: SourceDuplicate, Label: "longdup", Members: members, Expanded: true}
+}
+
+func TestView_LongGroupFitsHeight(t *testing.T) {
+	m := newModelWithFindings(longDuplicateFinding(100))
+	m.height, m.width = 20, 80
+	out := m.View()
+	if lines := strings.Count(out, "\n"); lines > m.height {
+		t.Errorf("view rendered %d lines, exceeds terminal height %d:\n%s", lines, m.height, out)
+	}
+	if !strings.Contains(out, "undup") {
+		t.Errorf("title row not present — chrome scrolled off:\n%s", out)
+	}
+}
 
 func TestView_BrowseMode_Empty(t *testing.T) {
 	m := NewModel(nil, nil, "/scan/root")

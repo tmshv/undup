@@ -17,10 +17,15 @@ type dupMsg scan.DuplicateGroup
 type scanHalfDoneMsg struct{ Source Source }
 type clearToastMsg struct{}
 
+// dirSizeMsg is keyed by path rather than by (findingIdx, memberIdx). A
+// dir-size walk runs concurrently with action dispatch; if an action prunes
+// findings before the walk returns, positional indices would silently point
+// at a different row and write the result there. Path-based lookup makes
+// stale messages either match the original member or no-op cleanly.
 type dirSizeMsg struct {
-	findingIdx, memberIdx int
-	size                  int64
-	err                   error
+	path string
+	size int64
+	err  error
 }
 
 func walkDirSize(path string) (int64, error) {
@@ -53,10 +58,10 @@ func walkDirSize(path string) (int64, error) {
 	return total, err
 }
 
-func dirSizeCmd(findingIdx, memberIdx int, path string) tea.Cmd {
+func dirSizeCmd(path string) tea.Cmd {
 	return func() tea.Msg {
 		size, err := walkDirSize(path)
-		return dirSizeMsg{findingIdx: findingIdx, memberIdx: memberIdx, size: size, err: err}
+		return dirSizeMsg{path: path, size: size, err: err}
 	}
 }
 
@@ -117,6 +122,10 @@ func recvDuplicateCmd(ch <-chan scan.DuplicateGroup) tea.Cmd {
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	nm, cmd := m.update(msg)
+	// Single choke point: after any state change, settle the viewport so the
+	// cursor row is always on screen (handles cursor moves, resizes, prunes,
+	// and overlay open/close all at once).
+	nm.clampScroll()
 	return nm, cmd
 }
 
@@ -154,21 +163,28 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 
 	case dirSizeMsg:
-		if msg.findingIdx >= 0 && msg.findingIdx < len(m.findings) {
-			f := &m.findings[msg.findingIdx]
-			if msg.memberIdx >= 0 && msg.memberIdx < len(f.Members) {
+		// Path-based lookup: the original (findingIdx, memberIdx) may have
+		// been invalidated by a prune in actionResultMsg. If no member with
+		// this path still exists the walk result is silently dropped.
+		var toastCmd tea.Cmd
+		for fi := range m.findings {
+			for mi := range m.findings[fi].Members {
+				mem := &m.findings[fi].Members[mi]
+				if mem.Path != msg.path {
+					continue
+				}
 				if msg.err != nil {
-					mem := &f.Members[msg.memberIdx]
 					mem.SizeErr = msg.err
 					mem.Selected = false
-					m.toast = sprintToast("dir-size walk failed for %s: %v", mem.Path, msg.err)
+					m.toast = sprintToast("dir-size walk failed for %s: %v", msg.path, msg.err)
 					m.toastUntil = time.Now().Add(3 * time.Second)
-					return m, clearToastCmd()
+					toastCmd = clearToastCmd()
+					continue
 				}
-				f.Members[msg.memberIdx].Size = msg.size
+				mem.Size = msg.size
 			}
 		}
-		return m, nil
+		return m, toastCmd
 
 	case actionResultMsg:
 		out := make([]Finding, 0, len(m.findings))
@@ -200,10 +216,18 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 		return m, clearToastCmd()
 
 	case tea.KeyMsg:
-		// ctrl+c is the universal escape hatch — works from every mode,
-		// including modeApplying where all other keys are swallowed while
-		// a long-running action is in flight.
+		// ctrl+c is the universal escape hatch except while an action is in
+		// flight: bubbletea would terminate the running goroutine on quit,
+		// which can strand a half-deleted directory or a half-copied move
+		// destination. Surface a toast so the user knows the keystroke was
+		// seen; the action completes quickly and quit becomes available
+		// again once mode returns to modeBrowse.
 		if msg.Type == tea.KeyCtrlC {
+			if m.mode == modeApplying {
+				m.toast = "Action in progress — wait for completion"
+				m.toastUntil = time.Now().Add(3 * time.Second)
+				return m, clearToastCmd()
+			}
 			return m, tea.Quit
 		}
 		if m.mode == modeMovePrompt {
@@ -265,6 +289,13 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			if m.cursor < len(m.visibleRows())-1 {
 				m.cursor++
 			}
+		case key.Matches(msg, keys.PageUp):
+			m.cursor = max0(m.cursor - m.bodyHeight())
+		case key.Matches(msg, keys.PageDown):
+			m.cursor += m.bodyHeight()
+			if last := len(m.visibleRows()) - 1; m.cursor > last {
+				m.cursor = max0(last)
+			}
 		case key.Matches(msg, keys.First):
 			m.cursor = 0
 		case key.Matches(msg, keys.Last):
@@ -286,9 +317,9 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				m.cursor = len(m.visibleRows()) - 1
 			}
 			if f.Expanded && f.Source == SourceArchive {
-				for mi, mem := range f.Members {
+				for _, mem := range f.Members {
 					if mem.IsDir && mem.Size == -1 && mem.SizeErr == nil {
-						return m, dirSizeCmd(r.findingIdx, mi, mem.Path)
+						return m, dirSizeCmd(mem.Path)
 					}
 				}
 			}

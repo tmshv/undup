@@ -143,6 +143,65 @@ func TestMoveAction_RefusesToOverwrite(t *testing.T) {
 	}
 }
 
+// copyDir is the cross-device fallback for directory members. Verifying it
+// directly is enough: the surrounding MoveAction logic only reaches this
+// path when os.Rename returns EXDEV, which we can't synthesize in tests
+// without crossing real filesystems.
+func TestCopyDir_RecursiveCopy(t *testing.T) {
+	src := t.TempDir()
+	mustWrite(t, filepath.Join(src, "a/b.bin"), []byte("hello"))
+	mustWrite(t, filepath.Join(src, "a/c/d.bin"), []byte("world"))
+	mustWrite(t, filepath.Join(src, "top.bin"), []byte("top"))
+
+	dst := filepath.Join(t.TempDir(), "out")
+	if err := copyDir(src, dst); err != nil {
+		t.Fatalf("copyDir: %v", err)
+	}
+
+	checks := map[string]string{
+		"a/b.bin":   "hello",
+		"a/c/d.bin": "world",
+		"top.bin":   "top",
+	}
+	for rel, want := range checks {
+		got, err := os.ReadFile(filepath.Join(dst, rel))
+		if err != nil {
+			t.Errorf("read %s: %v", rel, err)
+			continue
+		}
+		if string(got) != want {
+			t.Errorf("%s = %q, want %q", rel, got, want)
+		}
+	}
+}
+
+func TestCopyDir_PreservesSymlinks(t *testing.T) {
+	src := t.TempDir()
+	mustWrite(t, filepath.Join(src, "real.bin"), []byte("payload"))
+	link := filepath.Join(src, "link.bin")
+	if err := os.Symlink("real.bin", link); err != nil {
+		t.Skipf("symlinks unsupported on this platform: %v", err)
+	}
+	dst := filepath.Join(t.TempDir(), "out")
+	if err := copyDir(src, dst); err != nil {
+		t.Fatalf("copyDir: %v", err)
+	}
+	info, err := os.Lstat(filepath.Join(dst, "link.bin"))
+	if err != nil {
+		t.Fatalf("lstat link: %v", err)
+	}
+	if info.Mode()&os.ModeSymlink == 0 {
+		t.Errorf("expected symlink at dst, got mode %v", info.Mode())
+	}
+	got, err := os.Readlink(filepath.Join(dst, "link.bin"))
+	if err != nil {
+		t.Fatalf("readlink: %v", err)
+	}
+	if got != "real.bin" {
+		t.Errorf("link target = %q, want %q", got, "real.bin")
+	}
+}
+
 func TestApplyAction_DedupsByAbsPath(t *testing.T) {
 	root := t.TempDir()
 	p := filepath.Join(root, "shared.bin")

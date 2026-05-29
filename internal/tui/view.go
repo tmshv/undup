@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	helpLine = "↑/↓ move  g/G first/last  space toggle  ⏎ expand  a sel-group  A defaults  c clear  d delete  m move  q quit"
+	helpLine = "↑/↓ move  PgUp/PgDn page  g/G first/last  space toggle  ⏎ expand  a sel-group  A defaults  c clear  d delete  m move  q quit"
 )
 
 func (m Model) View() string {
@@ -25,7 +25,7 @@ func (m Model) View() string {
 	b.WriteString(m.statusLine() + "\n")
 	b.WriteString(strings.Repeat("─", maxWidth(m.width, 60)) + "\n")
 	b.WriteString(m.tableBody())
-	b.WriteString(strings.Repeat("─", maxWidth(m.width, 60)) + "\n")
+	b.WriteString(m.tableFooter() + "\n")
 	b.WriteString(dimStyle.Render(helpLine) + "\n")
 
 	if m.toast != "" {
@@ -74,9 +74,14 @@ func (m Model) selectedTotals() (selected, selectable int, reclaim int64) {
 }
 
 func (m Model) tableBody() string {
-	var b strings.Builder
 	rows := m.visibleRows()
-	for i, r := range rows {
+	if len(rows) == 0 {
+		return dimStyle.Render("  (no findings yet)\n")
+	}
+	start, end := m.viewport()
+	var b strings.Builder
+	for i := start; i < end; i++ {
+		r := rows[i]
 		f := m.findings[r.findingIdx]
 		var line string
 		if r.memberIdx == -1 {
@@ -103,10 +108,46 @@ func (m Model) tableBody() string {
 		}
 		b.WriteString(line + "\n")
 	}
-	if len(rows) == 0 {
-		b.WriteString(dimStyle.Render("  (no findings yet)\n"))
-	}
 	return b.String()
+}
+
+// viewport returns the [start, end) slice of visibleRows() currently on screen.
+// scrollOffset is clamped by clampScroll, so start is always valid here.
+func (m Model) viewport() (start, end int) {
+	rows := len(m.visibleRows())
+	start = m.scrollOffset
+	if start > max0(rows-1) {
+		start = max0(rows - 1)
+	}
+	end = start + m.bodyHeight()
+	if end > rows {
+		end = rows
+	}
+	return start, end
+}
+
+// tableFooter draws the bottom separator. When the table is taller than the
+// viewport it embeds a position readout (↑/↓ arrows + "first–last/total") so
+// the user can tell there is more content above or below.
+func (m Model) tableFooter() string {
+	w := maxWidth(m.width, 60)
+	rows := len(m.visibleRows())
+	start, end := m.viewport()
+	if m.height <= 0 || rows <= end-start {
+		return strings.Repeat("─", w)
+	}
+	up, down := " ", " "
+	if start > 0 {
+		up = "↑"
+	}
+	if end < rows {
+		down = "↓"
+	}
+	label := fmt.Sprintf("─ %s%s %d–%d/%d ", up, down, start+1, end, rows)
+	if pad := w - lipgloss.Width(label); pad > 0 {
+		return label + strings.Repeat("─", pad)
+	}
+	return label
 }
 
 func groupSizeLabel(f Finding) string {

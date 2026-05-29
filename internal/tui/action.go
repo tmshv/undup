@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -73,10 +74,38 @@ func (a MoveAction) Apply(m Member, scanRoot string) error {
 	} else if !isCrossDevice(err) {
 		return err
 	}
+	// Cross-device fallback: copy then delete. Directories require a
+	// recursive walk; the file-only path predates archive-directory members
+	// being movable.
+	//
+	// Failure handling is asymmetric on purpose: if the copy fails the
+	// source is still fully intact, so we wipe the partial destination so a
+	// retry isn't blocked by the destination-exists guard. But once we
+	// start removing the source we must NOT touch the destination on
+	// failure — os.RemoveAll is not atomic (it walks the tree removing
+	// entries one by one), so a mid-walk error leaves the source half-gone,
+	// and os.Remove on a single file can also race with concurrent
+	// deletion. In both cases the destination may hold the only surviving
+	// copy of bytes already removed from the source, so deleting it would
+	// turn a recoverable cleanup error into permanent data loss. Leave
+	// dest in place and let the user resolve the half-moved state.
+	if m.IsDir {
+		if err := copyDir(m.Path, dest); err != nil {
+			_ = os.RemoveAll(dest)
+			return err
+		}
+		if err := os.RemoveAll(m.Path); err != nil {
+			return fmt.Errorf("copy to %s succeeded but source cleanup failed: %w", dest, err)
+		}
+		return nil
+	}
 	if err := copyFile(m.Path, dest); err != nil {
 		return err
 	}
-	return os.Remove(m.Path)
+	if err := os.Remove(m.Path); err != nil {
+		return fmt.Errorf("copy to %s succeeded but source cleanup failed: %w", dest, err)
+	}
+	return nil
 }
 
 func isCrossDevice(err error) bool {
@@ -85,6 +114,46 @@ func isCrossDevice(err error) bool {
 		return errors.Is(linkErr.Err, syscall.EXDEV)
 	}
 	return errors.Is(err, syscall.EXDEV)
+}
+
+// copyDir recursively copies a directory tree from src to dst. Regular files
+// are copied; symlinks are recreated (tar archives commonly contain them, so
+// silently dropping them on a cross-device move would lose data). Other
+// non-regular entries (devices, sockets, named pipes) fail loudly rather
+// than getting deleted with the source.
+func copyDir(src, dst string) error {
+	return filepath.WalkDir(src, func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, err := filepath.Rel(src, p)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dst, rel)
+		if d.IsDir() {
+			info, err := d.Info()
+			if err != nil {
+				return err
+			}
+			return os.MkdirAll(target, info.Mode().Perm())
+		}
+		if d.Type()&fs.ModeSymlink != 0 {
+			link, err := os.Readlink(p)
+			if err != nil {
+				return fmt.Errorf("readlink %s: %w", p, err)
+			}
+			return os.Symlink(link, target)
+		}
+		info, err := d.Info()
+		if err != nil {
+			return err
+		}
+		if !info.Mode().IsRegular() {
+			return fmt.Errorf("unsupported non-regular file %s (mode %v)", p, info.Mode())
+		}
+		return copyFile(p, target)
+	})
 }
 
 func copyFile(src, dst string) error {
