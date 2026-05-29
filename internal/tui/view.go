@@ -15,7 +15,7 @@ var (
 )
 
 const (
-	helpLine = "↑/↓ move  PgUp/PgDn page  g/G first/last  space toggle  ⏎ expand  a sel-group  A defaults  c clear  d delete  m move  q quit"
+	helpLine = "↑/↓ move  PgUp/PgDn page  g/G first/last  space toggle  ⏎ expand  a group cycle  A defaults  c clear  d delete  m move  q quit"
 )
 
 func (m Model) View() string {

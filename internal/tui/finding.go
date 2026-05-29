@@ -75,6 +75,41 @@ func FromDuplicate(g scan.DuplicateGroup) Finding {
 	}
 }
 
+// cycleGroupSelection advances a single group through the three selection
+// states, wrapping: all-except-one → all → none → all-except-one. The next
+// state is derived from the group's current selection so the cycle stays
+// coherent even after the user space-toggles individual members. Only
+// selectable members are counted or selected; the "all-except-one" state
+// reuses the per-source default keep (applyDefaultSelection).
+func cycleGroupSelection(f *Finding) {
+	n, sel := 0, 0
+	for i := range f.Members {
+		if !f.Members[i].Selectable() {
+			continue
+		}
+		n++
+		if f.Members[i].Selected {
+			sel++
+		}
+	}
+	switch {
+	case n == 0:
+		return
+	case sel == n-1: // all-except-one → all
+		for i := range f.Members {
+			if f.Members[i].Selectable() {
+				f.Members[i].Selected = true
+			}
+		}
+	case sel == n: // all → none
+		for i := range f.Members {
+			f.Members[i].Selected = false
+		}
+	default: // none / arbitrary → all-except-one (per-source default keep)
+		applyDefaultSelection(f)
+	}
+}
+
 // applyDefaultSelection re-applies the per-source default selection rules
 // in place: archive sources select the archive (member 0); duplicate sources
 // select all members except the first (the canonical keep).

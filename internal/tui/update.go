@@ -342,11 +342,7 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				return m, nil
 			}
 			fi := rows[m.cursor].findingIdx
-			for i := range m.findings[fi].Members {
-				if m.findings[fi].Members[i].Selectable() {
-					m.findings[fi].Members[i].Selected = true
-				}
-			}
+			cycleGroupSelection(&m.findings[fi])
 		case key.Matches(msg, keys.ApplyDefault):
 			for fi := range m.findings {
 				applyDefaultSelection(&m.findings[fi])

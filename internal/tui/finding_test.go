@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/tmshv/undup/internal/scan"
@@ -75,5 +76,46 @@ func TestFromDuplicate_TwoCopies(t *testing.T) {
 	got := FromDuplicate(g)
 	if got.Members[0].Selected || !got.Members[1].Selected {
 		t.Errorf("default selection wrong: %+v", got.Members)
+	}
+}
+
+func TestCycleGroupSelection_Duplicate(t *testing.T) {
+	f := FromDuplicate(scan.DuplicateGroup{Size: 10, Paths: []string{"/a", "/b", "/c", "/d"}})
+	// FromDuplicate starts in the default "all-except-one" state (keep /a).
+	assertSelected := func(label string, want ...bool) {
+		t.Helper()
+		for i, w := range want {
+			if f.Members[i].Selected != w {
+				t.Fatalf("%s: member[%d].Selected = %v, want %v (%+v)", label, i, f.Members[i].Selected, w, f.Members)
+			}
+		}
+	}
+
+	cycleGroupSelection(&f) // except-one → all
+	assertSelected("after press 1 (all)", true, true, true, true)
+
+	cycleGroupSelection(&f) // all → none
+	assertSelected("after press 2 (none)", false, false, false, false)
+
+	cycleGroupSelection(&f) // none → all-except-one (default keep = first)
+	assertSelected("after press 3 (default)", false, true, true, true)
+
+	cycleGroupSelection(&f) // wrap: except-one → all
+	assertSelected("after press 4 (wrap to all)", true, true, true, true)
+}
+
+func TestCycleGroupSelection_SkipsNonSelectable(t *testing.T) {
+	f := Finding{Source: SourceDuplicate, Members: []Member{
+		{Path: "/a", Size: 10},
+		{Path: "/b", Size: 10, Selected: true},
+		{Path: "/c", SizeErr: errors.New("walk failed")}, // non-selectable
+	}}
+	// Selectable members = {a, b}: sel = 1 = n-1 → press goes to "all".
+	cycleGroupSelection(&f)
+	if !f.Members[0].Selected || !f.Members[1].Selected {
+		t.Fatalf("selectable members should be selected: %+v", f.Members)
+	}
+	if f.Members[2].Selected {
+		t.Fatalf("non-selectable member must not be selected: %+v", f.Members[2])
 	}
 }

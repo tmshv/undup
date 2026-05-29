@@ -164,14 +164,28 @@ func TestUpdate_ScanHalfDoneMarksDone(t *testing.T) {
 	}
 }
 
-func TestUpdate_SelectAllInGroup(t *testing.T) {
+func TestUpdate_SelectGroupCycle(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
-	m, _ = m.update(keyPress("enter")) // expand finding 0 (cursor on group)
-	m, _ = m.update(keyPress("a"))     // select all members of finding 0
-	for i, mem := range m.findings[0].Members {
-		if mem.Selectable() && !mem.Selected {
-			t.Errorf("member[%d].Selected = false after 'a'", i)
-		}
+	m, _ = m.update(keyPress("down")) // cursor → duplicate group header (finding 1)
+
+	dup := func() []Member { return m.findings[1].Members }
+	// finding 1 starts in default "all-except-one" (keep member 0).
+
+	m, _ = m.update(keyPress("a")) // → all
+	if !dup()[0].Selected || !dup()[1].Selected {
+		t.Fatalf("press 1 (all): %+v", dup())
+	}
+	m, _ = m.update(keyPress("a")) // → none
+	if dup()[0].Selected || dup()[1].Selected {
+		t.Fatalf("press 2 (none): %+v", dup())
+	}
+	m, _ = m.update(keyPress("a")) // → all-except-one (default keep = member 0)
+	if dup()[0].Selected || !dup()[1].Selected {
+		t.Fatalf("press 3 (default): %+v", dup())
+	}
+	// 'a' must only touch the group under the cursor, not finding 0.
+	if !m.findings[0].Members[0].Selected || m.findings[0].Members[1].Selected {
+		t.Errorf("'a' altered the non-cursor group: %+v", m.findings[0].Members)
 	}
 }
 
