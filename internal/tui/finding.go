@@ -75,6 +75,30 @@ func FromDuplicate(g scan.DuplicateGroup) Finding {
 	}
 }
 
+// totalSize is the group's ranking metric: the sum of every member's bytes,
+// independent of selection. Members with an unresolved size (e.g. an archive's
+// directory before its size walk completes, Size == -1) contribute 0 until the
+// size resolves.
+func (f Finding) totalSize() int64 {
+	var t int64
+	for _, m := range f.Members {
+		if m.Size > 0 {
+			t += m.Size
+		}
+	}
+	return t
+}
+
+// key is a stable identity for the group, used to keep the cursor on the same
+// finding when the list reorders. Member paths are unique, so the first
+// member's path identifies the group.
+func (f Finding) key() string {
+	if len(f.Members) > 0 {
+		return f.Members[0].Path
+	}
+	return f.Label
+}
+
 // cycleGroupSelection advances a single group through the three selection
 // states, wrapping: all-except-one → all → none → all-except-one. The next
 // state is derived from the group's current selection so the cycle stays

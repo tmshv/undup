@@ -79,6 +79,23 @@ func TestFromDuplicate_TwoCopies(t *testing.T) {
 	}
 }
 
+func TestFinding_TotalSize(t *testing.T) {
+	dup := FromDuplicate(scan.DuplicateGroup{Size: 100, Paths: []string{"/a", "/b", "/c"}})
+	if got := dup.totalSize(); got != 300 {
+		t.Errorf("duplicate totalSize = %d, want 300", got)
+	}
+
+	arc := FromArchive(scan.ArchiveFinding{ArchivePath: "/x.zip", DirPath: "/x", Size: 50})
+	// dir size unresolved (-1) counts as 0 until it is walked.
+	if got := arc.totalSize(); got != 50 {
+		t.Errorf("archive totalSize (unresolved dir) = %d, want 50", got)
+	}
+	arc.Members[1].Size = 70 // dir size resolves
+	if got := arc.totalSize(); got != 120 {
+		t.Errorf("archive totalSize (resolved dir) = %d, want 120", got)
+	}
+}
+
 func TestCycleGroupSelection_Duplicate(t *testing.T) {
 	f := FromDuplicate(scan.DuplicateGroup{Size: 10, Paths: []string{"/a", "/b", "/c", "/d"}})
 	// FromDuplicate starts in the default "all-except-one" state (keep /a).

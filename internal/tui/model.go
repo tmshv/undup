@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"sort"
 	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
@@ -158,6 +159,61 @@ func (m Model) visibleRows() []row {
 		}
 	}
 	return out
+}
+
+// sortFindings orders groups by total bytes descending. The sort is stable and
+// tie-broken by key so equal-sized groups keep a deterministic order and don't
+// jitter between renders.
+func (m *Model) sortFindings() {
+	sort.SliceStable(m.findings, func(i, j int) bool {
+		si, sj := m.findings[i].totalSize(), m.findings[j].totalSize()
+		if si != sj {
+			return si > sj
+		}
+		return m.findings[i].key() < m.findings[j].key()
+	})
+}
+
+// focusKey returns the identity of the group under the cursor and the member
+// offset within it, so the cursor can be restored after the list reorders.
+func (m Model) focusKey() (key string, memberIdx int) {
+	rows := m.visibleRows()
+	if len(rows) == 0 || m.cursor >= len(rows) {
+		return "", -1
+	}
+	r := rows[m.cursor]
+	return m.findings[r.findingIdx].key(), r.memberIdx
+}
+
+// restoreFocus moves the cursor back onto the group identified by key, at the
+// same member offset when it still exists, else the group header. No-op if the
+// group is gone (e.g. pruned by an action).
+func (m *Model) restoreFocus(key string, memberIdx int) {
+	if key == "" {
+		return
+	}
+	rows := m.visibleRows()
+	for idx, r := range rows {
+		if m.findings[r.findingIdx].key() == key && r.memberIdx == memberIdx {
+			m.cursor = idx
+			return
+		}
+	}
+	for idx, r := range rows {
+		if m.findings[r.findingIdx].key() == key {
+			m.cursor = idx
+			return
+		}
+	}
+}
+
+// resort re-sorts the findings while keeping the cursor on the same group.
+// Called whenever a group's total bytes change (arrival, dir-size resolution,
+// or prune). clampScroll runs afterward in the Update choke point.
+func (m *Model) resort() {
+	key, mi := m.focusKey()
+	m.sortFindings()
+	m.restoreFocus(key, mi)
 }
 
 func (m Model) Init() tea.Cmd {

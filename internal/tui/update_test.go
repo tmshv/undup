@@ -189,6 +189,47 @@ func TestUpdate_SelectGroupCycle(t *testing.T) {
 	}
 }
 
+func dupGroup(size int64, paths ...string) dupMsg {
+	return dupMsg(scan.DuplicateGroup{Size: size, Paths: paths})
+}
+
+func TestUpdate_LiveSortByTotalSize(t *testing.T) {
+	m := newModelWithFindings()
+	m, _ = m.update(dupGroup(100, "/a", "/a2")) // total 200
+	m, _ = m.update(dupGroup(500, "/b", "/b2")) // total 1000
+	m, _ = m.update(dupGroup(50, "/c", "/c2"))  // total 100
+
+	want := []string{"/b", "/a", "/c"} // descending by total bytes
+	for i, w := range want {
+		if got := m.findings[i].Members[0].Path; got != w {
+			t.Errorf("findings[%d] first member = %q, want %q (order: %v)", i, got, w, firstPaths(m.findings))
+		}
+	}
+}
+
+func TestUpdate_SortKeepsCursorOnGroup(t *testing.T) {
+	m := newModelWithFindings()
+	m, _ = m.update(dupGroup(500, "/big", "/big2"))  // total 1000
+	m, _ = m.update(dupGroup(100, "/mid", "/mid2"))  // total 200
+	m, _ = m.update(keyPress("down"))                // cursor → /mid header (row 1)
+	m, _ = m.update(dupGroup(1000, "/huge", "/hg2")) // total 2000, becomes first
+
+	r := m.visibleRows()[m.cursor]
+	if got := m.findings[r.findingIdx].Members[0].Path; got != "/mid" {
+		t.Errorf("cursor left /mid after re-sort, now on %q (order: %v)", got, firstPaths(m.findings))
+	}
+}
+
+func firstPaths(fs []Finding) []string {
+	out := make([]string, len(fs))
+	for i, f := range fs {
+		if len(f.Members) > 0 {
+			out[i] = f.Members[0].Path
+		}
+	}
+	return out
+}
+
 func TestUpdate_ClearAll(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
 	m, _ = m.update(keyPress("c"))
@@ -349,12 +390,28 @@ func TestUpdate_DirSizeMsgUpdatesMember(t *testing.T) {
 func TestUpdate_DirSizeMsgErrorMakesNonSelectable(t *testing.T) {
 	m := newModelWithFindings(sampleFindings()...)
 	m, _ = m.update(dirSizeMsg{path: "/scan/root/foo", err: os.ErrPermission})
-	if m.findings[0].Members[1].Selectable() {
+	// Live sorting may reorder findings, so locate the affected member by path
+	// rather than by a fixed index.
+	mem := findMember(t, m, "/scan/root/foo")
+	if mem.Selectable() {
 		t.Error("member should be non-selectable after dir-size error")
 	}
 	if m.toast == "" {
 		t.Error("expected toast set on dir-size error so user sees why selection was cleared")
 	}
+}
+
+func findMember(t *testing.T, m Model, path string) Member {
+	t.Helper()
+	for _, f := range m.findings {
+		for _, mem := range f.Members {
+			if mem.Path == path {
+				return mem
+			}
+		}
+	}
+	t.Fatalf("member %q not found in findings", path)
+	return Member{}
 }
 
 // Regression: positional indices (findingIdx/memberIdx) went stale after an

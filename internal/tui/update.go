@@ -141,10 +141,12 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 
 	case archMsg:
 		m.findings = append(m.findings, FromArchive(scan.ArchiveFinding(msg)))
+		m.resort()
 		return m, recvArchiveCmd(m.archCh)
 
 	case dupMsg:
 		m.findings = append(m.findings, FromDuplicate(scan.DuplicateGroup(msg)))
+		m.resort()
 		return m, recvDuplicateCmd(m.dupCh)
 
 	case scanHalfDoneMsg:
@@ -184,9 +186,14 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 				mem.Size = msg.size
 			}
 		}
+		// A resolved dir size changes the group's total bytes, so re-rank.
+		m.resort()
 		return m, toastCmd
 
 	case actionResultMsg:
+		// Capture the focused group before pruning so the cursor can be
+		// restored onto it (or its header) once the list reorders.
+		focusKey, focusMember := m.focusKey()
 		out := make([]Finding, 0, len(m.findings))
 		for _, f := range m.findings {
 			kept := make([]Member, 0, len(f.Members))
@@ -201,6 +208,10 @@ func (m Model) update(msg tea.Msg) (Model, tea.Cmd) {
 			}
 		}
 		m.findings = out
+		// Pruned members shrink a group's total bytes, so re-rank, then put
+		// the cursor back on the group it was on.
+		m.sortFindings()
+		m.restoreFocus(focusKey, focusMember)
 		if m.cursor >= len(m.visibleRows()) {
 			m.cursor = max0(len(m.visibleRows()) - 1)
 		}
