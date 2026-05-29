@@ -97,8 +97,59 @@ func TestView_PathTruncatedWhenTooNarrow(t *testing.T) {
 	if !strings.Contains(out, "…") {
 		t.Errorf("expected leading … truncation marker:\n%s", out)
 	}
-	if !strings.Contains(out, "file-name.bin") {
+	if !strings.Contains(out, "name.bin") {
 		t.Errorf("filename tail should survive truncation:\n%s", out)
+	}
+}
+
+func TestView_HeaderShowsTotalAlways(t *testing.T) {
+	const mib = 1024 * 1024
+	f := Finding{Source: SourceDuplicate, Label: "abcd1234", Members: []Member{
+		{Path: "/a", Size: 5 * mib},
+		{Path: "/b", Size: 5 * mib},
+		{Path: "/c", Size: 5 * mib},
+	}} // nothing selected
+	m := newModelWithFindings(f)
+	m.width, m.height = 100, 24
+	out := m.View()
+	header := lineContaining(t, out, "abcd1234")
+	if !strings.Contains(header, "15.0 MiB") {
+		t.Errorf("header should show total size (15.0 MiB) even with nothing selected:\n%s", header)
+	}
+	if strings.Contains(header, "↓") {
+		t.Errorf("no reclaim arrow expected in header when nothing is selected:\n%s", header)
+	}
+}
+
+// lineContaining returns the single output line that contains sub, failing if
+// none does. Used to assert on a specific row rather than the whole frame
+// (which also includes the "↑/↓ move" help line).
+func lineContaining(t *testing.T, out, sub string) string {
+	t.Helper()
+	for _, ln := range strings.Split(out, "\n") {
+		if strings.Contains(ln, sub) {
+			return ln
+		}
+	}
+	t.Fatalf("no line containing %q in:\n%s", sub, out)
+	return ""
+}
+
+func TestView_HeaderShowsReclaimWhenSelected(t *testing.T) {
+	const mib = 1024 * 1024
+	f := Finding{Source: SourceDuplicate, Label: "abcd1234", Members: []Member{
+		{Path: "/a", Size: 5 * mib},
+		{Path: "/b", Size: 5 * mib, Selected: true},
+		{Path: "/c", Size: 5 * mib, Selected: true},
+	}} // reclaim = 10 MiB
+	m := newModelWithFindings(f)
+	m.width, m.height = 100, 24
+	out := m.View()
+	if !strings.Contains(out, "15.0 MiB") {
+		t.Errorf("header should still show total (15.0 MiB):\n%s", out)
+	}
+	if !strings.Contains(out, "↓10.0 MiB") {
+		t.Errorf("header should show ↓reclaim (↓10.0 MiB) when members selected:\n%s", out)
 	}
 }
 

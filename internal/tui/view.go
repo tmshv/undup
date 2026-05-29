@@ -90,9 +90,9 @@ func (m Model) tableBody() string {
 			if f.Expanded {
 				indicator = "▼"
 			}
-			// Group header: "▼ dup  <label fills>            <size>  <count>"
+			// Group header: "▼ dup  <label fills>   <total>  ↓<reclaim>  <count>"
 			prefix := fmt.Sprintf("%s %s  ", indicator, f.Source.Tag())
-			right := fmt.Sprintf("%10s  %3d", groupSizeLabel(f), len(f.Members))
+			right := groupRight(f)
 			labelW := flexWidth(w, lipgloss.Width(prefix), lipgloss.Width(right))
 			line = prefix + padRight(truncate(f.Label, labelW), labelW) + "  " + right
 		} else {
@@ -104,10 +104,11 @@ func (m Model) tableBody() string {
 			if !mem.Selectable() {
 				check = "[!]"
 			}
-			// Member: "    [x] <path fills>            <size>     " — the five
-			// trailing spaces align the size column with the group header's.
+			// Member: "    [x] <path fills>   <size>            " — the size sits
+			// in the same column as the group header's total; trailing pad keeps
+			// the right segment as wide as the header's (rightColWidth).
 			prefix := "    " + check + " "
-			right := fmt.Sprintf("%10s     ", memberSizeLabel(mem))
+			right := padRight(padLeft(memberSizeLabel(mem), sizeColWidth), rightColWidth)
 			pathW := flexWidth(w, lipgloss.Width(prefix), lipgloss.Width(right))
 			line = prefix + padRight(truncate(mem.Path, pathW), pathW) + "  " + right
 		}
@@ -134,6 +135,15 @@ func flexWidth(total, prefix, right int) int {
 func padRight(s string, w int) string {
 	if gap := w - lipgloss.Width(s); gap > 0 {
 		return s + strings.Repeat(" ", gap)
+	}
+	return s
+}
+
+// padLeft right-aligns s within display width w. It measures display width
+// (not byte length, as %*s would) so multi-byte runes like ↓ pad correctly.
+func padLeft(s string, w int) string {
+	if gap := w - lipgloss.Width(s); gap > 0 {
+		return strings.Repeat(" ", gap) + s
 	}
 	return s
 }
@@ -177,19 +187,36 @@ func (m Model) tableFooter() string {
 	return label
 }
 
-func groupSizeLabel(f Finding) string {
+// Right-column geometry, shared by group headers and member rows so their size
+// columns line up. The header packs total + reclaim + count into rightColWidth;
+// a member shows just its size in the leading sizeColWidth slot.
+const (
+	sizeColWidth  = 10                            // a single right-aligned size
+	rightColWidth = sizeColWidth + 2 + 10 + 2 + 3 // total, ↓reclaim, count
+)
+
+// groupRight renders a header's right column: the total size (always), the
+// reclaimable size prefixed with ↓ (only when something is selected), and the
+// member count.
+func groupRight(f Finding) string {
+	reclaim := ""
+	if r := groupReclaim(f); r > 0 {
+		reclaim = "↓" + humanSize(r)
+	}
+	return padLeft(humanSize(f.totalSize()), sizeColWidth) + "  " +
+		padLeft(reclaim, 10) + "  " +
+		fmt.Sprintf("%3d", len(f.Members))
+}
+
+// groupReclaim is the bytes freed by deleting the currently-selected members.
+func groupReclaim(f Finding) int64 {
 	var total int64
-	known := false
 	for _, m := range f.Members {
 		if m.Selected && m.Size > 0 {
 			total += m.Size
-			known = true
 		}
 	}
-	if !known {
-		return "—"
-	}
-	return humanSize(total)
+	return total
 }
 
 func memberSizeLabel(m Member) string {
